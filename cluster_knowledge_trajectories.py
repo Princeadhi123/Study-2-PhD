@@ -1164,7 +1164,7 @@ def main():
 
     report_out = diagnostics_dir / "_clustering_report.txt"
 
-    feats.to_csv(feats_out, index=False)
+    feats[["IDCode"] + feature_cols].to_csv(feats_out, index=False)
     clusters.to_csv(clusters_out, index=False)
 
     try:
