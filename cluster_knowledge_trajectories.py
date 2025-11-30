@@ -10,7 +10,7 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN, Birch
-from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
+from sklearn.metrics import silhouette_score
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors
 
@@ -795,290 +795,6 @@ def dbscan_k_distance_plot(
     plt.close()
 
 
-def compute_internal_validity(X: np.ndarray, labels: np.ndarray) -> Dict:
-    result = {
-        "silhouette": None,
-        "davies_bouldin": None,
-        "calinski_harabasz": None,
-        "avg_intra_cluster_distance": None,
-    }
-    if labels is None:
-        return result
-    labels_arr = np.asarray(labels)
-    if labels_arr.shape[0] != X.shape[0]:
-        return result
-    mask = labels_arr >= 0
-    if not np.any(mask):
-        return result
-    X_use = X[mask]
-    y_use = labels_arr[mask]
-    uniq = np.unique(y_use)
-    if len(uniq) < 2:
-        return result
-    try:
-        result["silhouette"] = float(silhouette_score(X_use, y_use))
-    except Exception:
-        pass
-    try:
-        result["davies_bouldin"] = float(davies_bouldin_score(X_use, y_use))
-    except Exception:
-        pass
-    try:
-        result["calinski_harabasz"] = float(calinski_harabasz_score(X_use, y_use))
-    except Exception:
-        pass
-    # Average distance from points to their own cluster centroid (lower is better)
-    try:
-        total_dist = 0.0
-        total_count = 0
-        for c in uniq:
-            idx = np.nonzero(y_use == c)[0]
-            if len(idx) == 0:
-                continue
-            Xc = X_use[idx]
-            centroid = Xc.mean(axis=0)
-            dists = np.linalg.norm(Xc - centroid, axis=1)
-            total_dist += float(dists.sum())
-            total_count += int(len(dists))
-        if total_count > 0:
-            result["avg_intra_cluster_distance"] = float(total_dist / float(total_count))
-    except Exception:
-        pass
-    return result
-
-
-def compute_external_validity(true_labels: np.ndarray, cluster_labels: np.ndarray) -> Dict:
-    result = {
-        "rand_index": None,
-        "jaccard": None,
-    }
-    if true_labels is None or cluster_labels is None:
-        return result
-    y_true = np.asarray(true_labels)
-    y_pred = np.asarray(cluster_labels)
-    if y_true.shape[0] != y_pred.shape[0]:
-        return result
-    mask = y_pred >= 0
-    if not np.any(mask):
-        return result
-    y_true = y_true[mask]
-    y_pred = y_pred[mask]
-    n = y_true.shape[0]
-    if n <= 1:
-        return result
-    ct = pd.crosstab(pd.Series(y_true, name="true"), pd.Series(y_pred, name="pred"))
-    m = ct.to_numpy(dtype=float)
-
-    def _comb2(x: np.ndarray) -> float:
-        return float(((x * (x - 1.0)) / 2.0).sum())
-
-    a = _comb2(m)  # pairs in same cluster in both
-    row_sums = m.sum(axis=1)
-    col_sums = m.sum(axis=0)
-    b = _comb2(row_sums) - a  # same in true, different in pred
-    c = _comb2(col_sums) - a  # same in pred, different in true
-    N = n * (n - 1.0) / 2.0
-    d = N - a - b - c  # different in both
-    if N > 0.0:
-        result["rand_index"] = float((a + d) / N)
-    denom_j = a + b + c
-    if denom_j > 0.0:
-        result["jaccard"] = float(a / denom_j)
-    return result
-
-
-def _plot_internal_validity(internal_df: pd.DataFrame, out_dir: Path):
-    if internal_df is None or internal_df.empty:
-        return
-    # Exclude algorithms that should not appear in the summary plots
-    exclude_algs = {"dbscan_combined", "best_overall"}
-    df_plot = internal_df[~internal_df["algorithm"].isin(exclude_algs)].copy()
-    if df_plot.empty:
-        return
-    # Use a fixed algorithm order consistent with external validity results
-    desired_order = [
-        "kmeans",
-        "agglomerative",
-        "birch",
-        "gmm",
-        "gmm_bic_best",
-        "gmm_aic_best",
-        "dbscan",
-        "dbscan_selected",
-    ]
-    algorithms = [a for a in desired_order if a in df_plot["algorithm"].values]
-    if not algorithms:
-        return
-    metrics = [
-        ("silhouette", "Silhouette (higher better)"),
-        ("davies_bouldin", "Davies-Bouldin (lower better)"),
-        ("calinski_harabasz", "Calinski-Harabasz (higher better)"),
-        ("avg_intra_cluster_distance", "Avg intra-cluster distance (lower better)"),
-    ]
-    out_dir.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(12.0, 8.0))
-    for i, (col, title) in enumerate(metrics, start=1):
-        if col not in df_plot.columns:
-            continue
-        plt.subplot(2, 2, i)
-        vals_series = df_plot.set_index("algorithm")[col]
-        vals = [vals_series.get(a, np.nan) for a in algorithms]
-        sns.barplot(x=algorithms, y=vals)
-        plt.xticks(rotation=45, ha="right")
-        plt.ylabel(col)
-        plt.title(title)
-    plt.tight_layout()
-    plt.savefig(out_dir / "internal_validity_summary.png", dpi=150)
-    plt.close()
-    _internal_validity_heatmap(internal_df, out_dir)
-
-
-def _plot_external_validity(external_df: pd.DataFrame, out_dir: Path):
-    if external_df is None or external_df.empty:
-        return
-    # Exclude algorithms that should not appear in the summary plots
-    exclude_algs = {"dbscan_combined", "best_overall"}
-    df_plot = external_df[~external_df["algorithm"].isin(exclude_algs)].copy()
-    if df_plot.empty:
-        return
-    out_dir.mkdir(parents=True, exist_ok=True)
-    algs = df_plot["algorithm"].astype(str).tolist()
-    plt.figure(figsize=(10.0, 5.0))
-    # Rand index (higher is better)
-    plt.subplot(1, 2, 1)
-    if "rand_index" in df_plot.columns:
-        sns.barplot(x=algs, y=df_plot["rand_index"])
-        plt.xticks(rotation=45, ha="right")
-        plt.ylabel("Rand index")
-        plt.title("External validity: Rand index vs sex (higher better)")
-    # Jaccard (higher is better)
-    plt.subplot(1, 2, 2)
-    if "jaccard" in df_plot.columns:
-        sns.barplot(x=algs, y=df_plot["jaccard"])
-        plt.xticks(rotation=45, ha="right")
-        plt.ylabel("Jaccard coefficient")
-        plt.title("External validity: Jaccard vs sex (higher better)")
-    plt.tight_layout()
-    plt.savefig(out_dir / "external_validity_summary.png", dpi=150)
-    plt.close()
-    _external_validity_heatmap(external_df, out_dir)
-
-
-def _normalize_metric(series: pd.Series, higher_is_better: bool) -> pd.Series:
-    s = pd.to_numeric(series, errors="coerce")
-    if not higher_is_better:
-        s = -s
-    s_min = s.min()
-    s_max = s.max()
-    if not np.isfinite(s_min) or not np.isfinite(s_max) or s_max <= s_min:
-        return pd.Series(np.full(len(s), np.nan), index=series.index)
-    return (s - s_min) / (s_max - s_min)
-
-
-def _internal_validity_heatmap(internal_df: pd.DataFrame, out_dir: Path):
-    if internal_df is None or internal_df.empty:
-        return
-    exclude_algs = {"dbscan_combined", "best_overall"}
-    df_plot = internal_df[~internal_df["algorithm"].isin(exclude_algs)].copy()
-    if df_plot.empty:
-        return
-    desired_order = [
-        "kmeans",
-        "agglomerative",
-        "birch",
-        "gmm",
-        "gmm_bic_best",
-        "gmm_aic_best",
-        "dbscan",
-        "dbscan_selected",
-    ]
-    algs = [a for a in desired_order if a in df_plot["algorithm"].values]
-    if not algs:
-        return
-    df_plot = df_plot.set_index("algorithm").loc[algs]
-    metrics_info = [
-        ("silhouette", True, "Silhouette"),
-        ("davies_bouldin", False, "Davies-Bouldin"),
-        ("calinski_harabasz", True, "Calinski-Harabasz"),
-        ("avg_intra_cluster_distance", False, "Avg intra-cluster distance"),
-    ]
-    data = {}
-    for col, higher_better, label in metrics_info:
-        if col in df_plot.columns:
-            data[label] = _normalize_metric(df_plot[col], higher_better)
-    if not data:
-        return
-    mat = pd.DataFrame(data, index=df_plot.index)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(10.0, 6.0))
-    sns.heatmap(
-        mat,
-        annot=True,
-        fmt=".2f",
-        cmap="YlGnBu",
-        vmin=0.0,
-        vmax=1.0,
-        cbar_kws={"label": "Normalized score"},
-    )
-    plt.ylabel("Algorithm")
-    plt.xlabel("Internal validity metric")
-    plt.title("Internal cluster validity (normalized)")
-    plt.tight_layout()
-    plt.savefig(out_dir / "internal_validity_heatmap.png", dpi=150)
-    plt.close()
-
-
-def _external_validity_heatmap(external_df: pd.DataFrame, out_dir: Path):
-    if external_df is None or external_df.empty:
-        return
-    exclude_algs = {"dbscan_combined", "best_overall"}
-    df_plot = external_df[~external_df["algorithm"].isin(exclude_algs)].copy()
-    if df_plot.empty:
-        return
-    desired_order = [
-        "kmeans",
-        "agglomerative",
-        "birch",
-        "gmm",
-        "gmm_bic_best",
-        "gmm_aic_best",
-        "dbscan",
-        "dbscan_selected",
-    ]
-    algs = [a for a in desired_order if a in df_plot["algorithm"].values]
-    if not algs:
-        return
-    df_plot = df_plot.set_index("algorithm").loc[algs]
-    metrics_info = [
-        ("rand_index", True, "Rand index"),
-        ("jaccard", True, "Jaccard"),
-    ]
-    data = {}
-    for col, higher_better, label in metrics_info:
-        if col in df_plot.columns:
-            data[label] = _normalize_metric(df_plot[col], higher_better)
-    if not data:
-        return
-    mat = pd.DataFrame(data, index=df_plot.index)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    plt.figure(figsize=(6.5, 6.0))
-    sns.heatmap(
-        mat,
-        annot=True,
-        fmt=".2f",
-        cmap="YlGnBu",
-        vmin=0.0,
-        vmax=1.0,
-        cbar_kws={"label": "Normalized score"},
-    )
-    plt.ylabel("Algorithm")
-    plt.xlabel("External validity metric")
-    plt.title("External cluster validity (normalized)")
-    plt.tight_layout()
-    plt.savefig(out_dir / "external_validity_heatmap.png", dpi=150)
-    plt.close()
-
-
 def agglomerative_sweep(X: np.ndarray, k_range=range(2, 11)) -> Tuple[np.ndarray, Dict]:
     best = {"k": None, "sil": -1.0}
     best_labels = None
@@ -1254,11 +970,6 @@ def write_report(report_path: Path, summary: Dict):
     ag = summary.get("agglomerative", {})
     gm = summary.get("gmm", {})
     br = summary.get("birch", {})
-    db = summary.get("dbscan", {})
-    db_comb = summary.get("dbscan_combined", {})
-    db_elbow = summary.get("dbscan_elbow_eps", None)
-    db_sel = summary.get("dbscan_selected", {})
-    db_noise_thr = summary.get("dbscan_noise_threshold", None)
     gm_bic = summary.get("gmm_bic_best", {})
     gm_aic = summary.get("gmm_aic_best", {})
     best_overall = summary.get("best_overall", {})
@@ -1275,33 +986,6 @@ def write_report(report_path: Path, summary: Dict):
     lines.append(f"  best_k: {gm.get('k')}\n")
     lines.append(f"  covariance_type: {gm.get('covariance_type')}\n")
     lines.append(f"  silhouette: {gm.get('sil')}\n\n")
-    lines.append("DBSCAN (core points only)\n")
-    lines.append(f"  best_eps_by_silhouette: {db.get('eps')}\n")
-    lines.append(f"  min_samples: {db.get('min_samples')}\n")
-    lines.append(f"  n_clusters: {db.get('n_clusters')}\n")
-    lines.append(f"  noise_rate: {db.get('noise_rate')}\n")
-    lines.append(f"  silhouette_core: {db.get('sil')}\n\n")
-    if db_comb:
-        lines.append("  best_eps_by_combined (silhouette*(1-noise))\n")
-        lines.append(f"    eps: {db_comb.get('eps')}\n")
-        lines.append(f"    n_clusters: {db_comb.get('n_clusters')}\n")
-        lines.append(f"    noise_rate: {db_comb.get('noise_rate')}\n")
-        lines.append(f"    silhouette_core: {db_comb.get('sil')}\n")
-        lines.append(f"    combined: {db_comb.get('combined')}\n\n")
-    if db_elbow is not None:
-        lines.append(f"  elbow_eps_estimate (k-distance): {db_elbow}\n\n")
-    if db_sel:
-        lines.append("DBSCAN auto-selection (threshold on noise rate)\n")
-        if db_noise_thr is not None:
-            lines.append(f"  noise_rate_threshold: {db_noise_thr}\n")
-        lines.append(f"  selected_eps: {db_sel.get('eps')}\n")
-        lines.append(f"  selected_min_samples: {db_sel.get('min_samples')}\n")
-        lines.append(f"  n_clusters: {db_sel.get('n_clusters')}\n")
-        lines.append(f"  noise_rate: {db_sel.get('noise_rate')}\n")
-        lines.append(f"  silhouette_core: {db_sel.get('sil')}\n")
-        if 'combined' in db_sel:
-            lines.append(f"  combined: {db_sel.get('combined')}\n")
-        lines.append("\n")
 
     if gm_bic or gm_aic:
         lines.append("GMM model selection (information criteria)\n")
@@ -1426,37 +1110,6 @@ def main():
     except Exception:
         gmm_aic_best_labels = np.full(len(Xs), -1)
 
-    # DBSCAN diagnostics: sweep over eps with noise penalty + k-distance elbow
-    db_diag_df, db_labels_sil, db_best, db_labels_comb, db_best_comb = dbscan_grid_diagnostics(
-        Xs, eps_values=np.linspace(0.5, 3.0, 11), min_samples=5
-    )
-    db_diag_df.to_csv(model_results_dir / "dbscan_sweep.csv", index=False)
-    elbow_eps = estimate_dbscan_elbow_eps(Xs, min_samples=5)
-    # Expanded DBSCAN multi-parameter grid and auto-selection
-    eps_values_expanded = np.linspace(0.3, 4.0, 38)
-    min_samples_list = [3, 5, 8, 10]
-    db_multi_df, db_multi_best_sil, db_multi_best_comb = dbscan_multi_grid_diagnostics(
-        Xs, eps_values=eps_values_expanded, min_samples_list=min_samples_list
-    )
-    db_multi_df.to_csv(model_results_dir / "dbscan_multi_sweep.csv", index=False)
-    _save_line_plot_hue(db_multi_df, "eps", "silhouette_core", "min_samples", "DBSCAN silhouette_core vs eps", figures_dir / "dbscan" / "dbscan_silhouette_vs_eps.png")
-    _save_line_plot_hue(db_multi_df, "eps", "combined", "min_samples", "DBSCAN combined vs eps", figures_dir / "dbscan" / "dbscan_combined_vs_eps.png")
-    _save_line_plot_hue(db_multi_df, "eps", "noise_rate", "min_samples", "DBSCAN noise_rate vs eps", figures_dir / "dbscan" / "dbscan_noise_vs_eps.png")
-
-    noise_threshold = 0.20
-    if db_multi_best_sil.get("noise_rate", 1.0) <= noise_threshold:
-        db_selected = db_multi_best_sil
-    else:
-        db_selected = db_multi_best_comb
-    db_selected_labels = DBSCAN(eps=float(db_selected.get("eps")), min_samples=int(db_selected.get("min_samples"))).fit_predict(Xs)
-    dbscan_k_distance_plot(
-        Xs,
-        5,
-        figures_dir / "dbscan" / "dbscan_kdistance.png",
-        mark_eps_list=[db_best.get("eps"), db_best_comb.get("eps"), elbow_eps, db_selected.get("eps")],
-    )
-    db_labels = db_labels_sil
-
     # Determine best overall clustering by silhouette across algorithms
     best_overall_algo = None
     best_overall_sil = -1.0
@@ -1468,7 +1121,6 @@ def main():
         ("agglomerative", ag_best.get("sil"), ag_labels, {"k": ag_best.get("k")}),
         ("birch", br_best.get("sil"), br_labels, {"k": br_best.get("k"), "threshold": br_best.get("threshold"), "branching_factor": br_best.get("branching_factor")}),
         ("gmm", gm_best.get("sil"), gm_labels, {"k": gm_best.get("k"), "covariance_type": gm_best.get("covariance_type")}),
-        ("dbscan", db_best.get("sil"), db_labels, {"eps": db_best.get("eps"), "min_samples": db_best.get("min_samples"), "n_clusters": db_best.get("n_clusters")}),
     ]
 
     for algo, sil, labels_arr, params in candidates:
@@ -1483,90 +1135,7 @@ def main():
             best_overall_algo = algo
             best_overall_labels = labels_arr
             best_overall_params = params or {}
-    internal_rows = []
-
-    def _add_internal_row(name: str, labels_arr, params: Dict | None = None):
-        if labels_arr is None:
-            return
-        metrics = compute_internal_validity(Xs, labels_arr)
-        row = {"algorithm": name}
-        if params:
-            row.update(params)
-        row.update(metrics)
-        internal_rows.append(row)
-
-    _add_internal_row("kmeans", km_labels, {"k": km_best.get("k")})
-    _add_internal_row("agglomerative", ag_labels, {"k": ag_best.get("k")})
-    _add_internal_row(
-        "birch",
-        br_labels,
-        {
-            "k": br_best.get("k"),
-            "threshold": br_best.get("threshold"),
-            "branching_factor": br_best.get("branching_factor"),
-        },
-    )
-    _add_internal_row(
-        "gmm",
-        gm_labels,
-        {
-            "k": gm_best.get("k"),
-            "covariance_type": gm_best.get("covariance_type"),
-        },
-    )
-    _add_internal_row(
-        "dbscan",
-        db_labels,
-        {
-            "eps": db_best.get("eps"),
-            "min_samples": db_best.get("min_samples"),
-            "n_clusters": db_best.get("n_clusters"),
-        },
-    )
-    _add_internal_row(
-        "dbscan_combined",
-        db_labels_comb,
-        {
-            "eps": db_best_comb.get("eps"),
-            "min_samples": db_best_comb.get("min_samples"),
-            "n_clusters": db_best_comb.get("n_clusters"),
-        },
-    )
-    _add_internal_row(
-        "dbscan_selected",
-        db_selected_labels,
-        {
-            "eps": db_selected.get("eps"),
-            "min_samples": db_selected.get("min_samples"),
-            "n_clusters": db_selected.get("n_clusters"),
-        },
-    )
-    _add_internal_row(
-        "gmm_bic_best",
-        gmm_bic_best_labels,
-        {
-            "k": gm_bic_best.get("k"),
-            "covariance_type": gm_bic_best.get("covariance_type"),
-        },
-    )
-    _add_internal_row(
-        "gmm_aic_best",
-        gmm_aic_best_labels,
-        {
-            "k": gm_aic_best.get("k"),
-            "covariance_type": gm_aic_best.get("covariance_type"),
-        },
-    )
-    if best_overall_labels is not None:
-        _add_internal_row("best_overall", best_overall_labels, {"base_algorithm": best_overall_algo})
-
-    if internal_rows:
-        internal_df = pd.DataFrame(internal_rows)
-        validity_diag_dir = diagnostics_dir / "cluster validity"
-        validity_diag_dir.mkdir(parents=True, exist_ok=True)
-        internal_df.to_csv(validity_diag_dir / "cluster_internal_validity.csv", index=False)
-        _plot_internal_validity(internal_df, figures_dir / "cluster validity")
-
+    
     clusters_dict = {
         "IDCode": feats["IDCode"],
         "kmeans_label": km_labels,
@@ -1575,9 +1144,6 @@ def main():
         "gmm_label": gm_labels,
         "gmm_bic_best_label": gmm_bic_best_labels,
         "gmm_aic_best_label": gmm_aic_best_labels,
-        "dbscan_label": db_labels,
-        "dbscan_combined_label": db_labels_comb,
-        "dbscan_selected_label": db_selected_labels,
     }
     if best_overall_labels is not None:
         clusters_dict["best_overall_label"] = best_overall_labels
@@ -1585,39 +1151,6 @@ def main():
         clusters_dict["best_overall_label"] = np.full(len(feats), -1)
 
     clusters = pd.DataFrame(clusters_dict)
-
-    if "sex" in df.columns:
-        sex_by_id = df.groupby("IDCode")["sex"].first()
-        true_sex = sex_by_id.reindex(clusters["IDCode"])
-        external_rows = []
-        label_cols = [
-            "kmeans_label",
-            "agglomerative_label",
-            "birch_label",
-            "gmm_label",
-            "gmm_bic_best_label",
-            "gmm_aic_best_label",
-            "dbscan_label",
-            "dbscan_combined_label",
-            "dbscan_selected_label",
-            "best_overall_label",
-        ]
-        for col in label_cols:
-            if col not in clusters.columns:
-                continue
-            metrics = compute_external_validity(true_sex.to_numpy(), clusters[col].to_numpy())
-            row = {
-                "algorithm": col.replace("_label", ""),
-                "label_column": col,
-            }
-            row.update(metrics)
-            external_rows.append(row)
-        if external_rows:
-            external_df = pd.DataFrame(external_rows)
-            validity_diag_dir = diagnostics_dir / "cluster validity"
-            validity_diag_dir.mkdir(parents=True, exist_ok=True)
-            external_df.to_csv(validity_diag_dir / "cluster_external_validity.csv", index=False)
-            _plot_external_validity(external_df, figures_dir / "cluster validity")
 
     features_dir = diagnostics_dir / "cluster input features"
     features_dir.mkdir(parents=True, exist_ok=True)
@@ -1713,25 +1246,6 @@ def main():
 
     except Exception:
         pass
-    try:
-        pca_scatter(Xs, db_labels, f"DBSCAN (best by silhouette, eps={db_best.get('eps')})", figures_dir / "dbscan" / "dbscan_pca.png")
-    except Exception:
-        pass
-    try:
-        pca_scatter(Xs, db_labels_comb, f"DBSCAN (best by combined, eps={db_best_comb.get('eps')})", figures_dir / "dbscan" / "dbscan_combined_pca.png")
-    except Exception:
-        pass
-
-    try:
-        pca_scatter(
-            Xs,
-            db_selected_labels,
-            f"DBSCAN (selected, eps={db_selected.get('eps')}, min_samples={db_selected.get('min_samples')})",
-            figures_dir / "dbscan" / "dbscan_selected_pca.png",
-        )
-    except Exception:
-        pass
-
     # Profiles for interpretation: GMM best-by-BIC
     try:
         _save_cluster_profiles(
@@ -1852,11 +1366,6 @@ def main():
         "agglomerative": ag_best,
         "birch": br_best,
         "gmm": gm_best,
-        "dbscan": db_best,
-        "dbscan_combined": db_best_comb,
-        "dbscan_elbow_eps": elbow_eps,
-        "dbscan_selected": db_selected,
-        "dbscan_noise_threshold": noise_threshold,
         "gmm_bic_best": gm_bic_best,
         "gmm_aic_best": gm_aic_best,
         "best_overall": best_overall_summary,
