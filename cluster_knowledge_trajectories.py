@@ -499,21 +499,10 @@ def _save_cluster_cards(feats: pd.DataFrame, feature_cols: list, labels: np.ndar
             if c in feature_cols:
                 feature_to_group[c] = g
     for k in zmean.index:
-        cluster_z = zmean.loc[k]
-        ser = cluster_z[cluster_z > 0].sort_values(ascending=False)
+        ser = zmean.loc[k].abs().sort_values(ascending=False)
         if ser.empty:
             continue
-        selected = []
-        used_groups = set()
-        for f in ser.index:
-            g = feature_to_group.get(f, f)
-            if g in used_groups:
-                continue
-            selected.append(f)
-            used_groups.add(g)
-            if len(selected) >= top_n:
-                break
-        feat = selected
+        feat = ser.index[:top_n].tolist()
         zvals = zmean.loc[k, feat].sort_values()
         fig, ax = plt.subplots(figsize=(6, 4))
         ax.barh(zvals.index, zvals.values, color=["#d62728" if v>0 else "#1f77b4" for v in zmean.loc[k, zvals.index].values])
@@ -1336,7 +1325,7 @@ def main():
             gmm_bic_best_labels,
             figures_dir / "gmm" / "BIC" / "cluster_cards",
             label_name="gmm_bic_best_label",
-            top_n=6,
+            top_n=4,
         )
 
     except Exception:
