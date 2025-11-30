@@ -38,6 +38,9 @@ CLUSTER_COLORS = [
     "#A6761D",  # ochre
 ]
 
+EXCLUDED_PLOT_FEATURES = {"rt_cv", "total_incorrect", "accuracy"}
+EXCLUDED_STUDENTS = {"hopi338", "mory430", "magu282", "zade686"}
+
 
 def get_cluster_palette(n: int) -> list:
     if n <= len(CLUSTER_COLORS):
@@ -157,7 +160,7 @@ def scale_features(feats: pd.DataFrame, feature_cols: list) -> Tuple[np.ndarray,
     return Xs, scaler
 
 
-def kmeans_sweep(X: np.ndarray, k_range=range(2, 16)) -> Tuple[np.ndarray, Dict]:
+def kmeans_sweep(X: np.ndarray, k_range=range(2, 11)) -> Tuple[np.ndarray, Dict]:
     best = {"k": None, "sil": -1.0}
     best_labels = None
     for k in k_range:
@@ -173,7 +176,7 @@ def kmeans_sweep(X: np.ndarray, k_range=range(2, 16)) -> Tuple[np.ndarray, Dict]
     return best_labels, best
 
 
-def _silhouette_curve_kmeans(X: np.ndarray, k_range=range(2, 16)) -> pd.DataFrame:
+def _silhouette_curve_kmeans(X: np.ndarray, k_range=range(2, 11)) -> pd.DataFrame:
     rows = []
     for k in k_range:
         km = KMeans(n_clusters=k, random_state=42, n_init=10)
@@ -186,7 +189,7 @@ def _silhouette_curve_kmeans(X: np.ndarray, k_range=range(2, 16)) -> pd.DataFram
     return pd.DataFrame(rows)
 
 
-def _silhouette_curve_agglomerative(X: np.ndarray, k_range=range(2, 16)) -> pd.DataFrame:
+def _silhouette_curve_agglomerative(X: np.ndarray, k_range=range(2, 11)) -> pd.DataFrame:
     rows = []
     for k in k_range:
         agg = AgglomerativeClustering(n_clusters=k, linkage="ward")
@@ -201,7 +204,7 @@ def _silhouette_curve_agglomerative(X: np.ndarray, k_range=range(2, 16)) -> pd.D
 
 def _silhouette_curve_gmm(
     X: np.ndarray,
-    k_range=range(2, 16),
+    k_range=range(2, 11),
     covariance_types=("full", "diag", "tied", "spherical"),
 ) -> pd.DataFrame:
     rows = []
@@ -228,7 +231,7 @@ def _silhouette_curve_gmm(
 
 def _silhouette_curve_birch(
     X: np.ndarray,
-    k_range=range(2, 16),
+    k_range=range(2, 11),
     thresholds=(0.3, 0.5, 0.7, 0.9),
     branching_factor: int = 50,
 ) -> pd.DataFrame:
@@ -308,6 +311,10 @@ def analyze_pca_loadings(X: np.ndarray, feature_names: list, out_dir: Path):
     # Create DataFrame for heatmap
     pc_names = [f"PC{i+1} ({exp_var[i]:.1%})" for i in range(n_show)]
     loadings_df = pd.DataFrame(loadings, index=feature_names, columns=pc_names)
+    # Drop features we do not want to show in plots
+    if EXCLUDED_PLOT_FEATURES:
+        keep_idx = [f for f in loadings_df.index if f not in EXCLUDED_PLOT_FEATURES]
+        loadings_df = loadings_df.loc[keep_idx]
     
     plt.figure(figsize=(8, max(6, len(feature_names) * 0.4)))
     sns.heatmap(loadings_df, annot=True, cmap="RdBu_r", center=0, fmt=".2f")
@@ -365,6 +372,10 @@ def analyze_lda_loadings(X: np.ndarray, labels: np.ndarray, feature_names: list,
         else:
             col_names.append(f"LD{i+1}")
     loadings_df = pd.DataFrame(loadings, index=feature_names, columns=col_names)
+    # Drop features we do not want to show in plots
+    if EXCLUDED_PLOT_FEATURES:
+        keep_idx = [f for f in loadings_df.index if f not in EXCLUDED_PLOT_FEATURES]
+        loadings_df = loadings_df.loc[keep_idx]
     plt.figure(figsize=(8, max(6, len(feature_names) * 0.4)))
     sns.heatmap(loadings_df, annot=True, cmap="RdBu_r", center=0, fmt=".2f")
     plt.title("LDA Loadings (Feature Contributions to LDs)")
@@ -470,7 +481,7 @@ def _save_cluster_cards(feats: pd.DataFrame, feature_cols: list, labels: np.ndar
     df = feats.copy()
     df[label_name] = labels
     out_dir.mkdir(parents=True, exist_ok=True)
-    feature_cols = [c for c in feature_cols if (c != "n_items") and (df[c].nunique() > 1)]
+    feature_cols = [c for c in feature_cols if (c != "n_items") and (df[c].nunique() > 1) and (c not in EXCLUDED_PLOT_FEATURES)]
     mu = df[feature_cols].mean()
     sd = df[feature_cols].std(ddof=0).replace(0, np.nan)
     z = (df[feature_cols] - mu) / sd
@@ -512,7 +523,7 @@ def _save_cluster_cards(feats: pd.DataFrame, feature_cols: list, labels: np.ndar
         plt.close()
 
 
-def _save_accuracy_speed_ellipse(feats: pd.DataFrame, labels: np.ndarray, out_path: Path, label_name: str = "cluster", x: str = "accuracy", y: str = "avg_rt", xlabel: str = "Accuracy", ylabel: str = "Avg RT (s)", title: str = "Accuracy vs Avg RT with cluster ellipses (GMM BIC)"):
+def _save_accuracy_speed_ellipse(feats: pd.DataFrame, labels: np.ndarray, out_path: Path, label_name: str = "cluster", x: str = "total_correct", y: str = "avg_rt", xlabel: str = "Total correct", ylabel: str = "Avg RT (s)", title: str = "Total correct vs Avg RT with cluster ellipses (GMM BIC)"):
     df = feats.copy()
     df[label_name] = labels
     # Slightly larger figure for better readability while keeping the same data scale
@@ -545,8 +556,8 @@ def _save_accuracy_speed_ellipse(feats: pd.DataFrame, labels: np.ndarray, out_pa
 
 
 def _save_zmean_heatmap(df: pd.DataFrame, feature_cols: list, cluster_col: str, title: str, out_path: Path):
-    # Drop constant features (e.g., n_items) from visualization
-    feature_cols = [c for c in feature_cols if (c != "n_items") and (df[c].nunique() > 1)]
+    # Drop constant features (e.g., n_items) and excluded features from visualization
+    feature_cols = [c for c in feature_cols if (c != "n_items") and (df[c].nunique() > 1) and (c not in EXCLUDED_PLOT_FEATURES)]
     mu = df[feature_cols].mean()
     sd = df[feature_cols].std(ddof=0).replace(0, np.nan)
     z = (df[feature_cols] - mu) / sd
@@ -813,7 +824,7 @@ def agglomerative_sweep(X: np.ndarray, k_range=range(2, 11)) -> Tuple[np.ndarray
 
 def gmm_sweep(
     X: np.ndarray,
-    k_range=range(2, 16),
+    k_range=range(2, 11),
     covariance_types=("full", "diag", "tied", "spherical"),
 ) -> Tuple[np.ndarray, Dict]:
     best = {"k": None, "covariance_type": None, "sil": -1.0}
@@ -838,7 +849,7 @@ def gmm_sweep(
 
 def birch_sweep(
     X: np.ndarray,
-    k_range=range(2, 16),
+    k_range=range(2, 11),
     thresholds=(0.3, 0.5, 0.7, 0.9),
     branching_factor: int = 50,
 ) -> Tuple[np.ndarray, Dict]:
@@ -1024,6 +1035,8 @@ def main():
 
     df = pd.read_csv(data_path)
     feats = compute_student_features(df)
+    if EXCLUDED_STUDENTS:
+        feats = feats[~feats["IDCode"].isin(EXCLUDED_STUDENTS)].reset_index(drop=True)
 
     feature_cols = [
         "n_items",
@@ -1047,10 +1060,10 @@ def main():
     # ----------------------------------
 
 
-    km_labels, km_best = kmeans_sweep(Xs, k_range=range(2, 16))
-    ag_labels, ag_best = agglomerative_sweep(Xs, k_range=range(2, 16))
-    gm_labels, gm_best = gmm_sweep(Xs, k_range=range(2, 16))
-    br_labels, br_best = birch_sweep(Xs, k_range=range(2, 16))
+    km_labels, km_best = kmeans_sweep(Xs, k_range=range(2, 11))
+    ag_labels, ag_best = agglomerative_sweep(Xs, k_range=range(2, 11))
+    gm_labels, gm_best = gmm_sweep(Xs, k_range=range(2, 11))
+    br_labels, br_best = birch_sweep(Xs, k_range=range(2, 11))
 
     diagnostics_dir = out_dir / "diagnostics"
     diagnostics_dir.mkdir(parents=True, exist_ok=True)
@@ -1058,10 +1071,10 @@ def main():
     model_results_dir.mkdir(parents=True, exist_ok=True)
 
     # Per-K silhouette curves (CSV + plots)
-    km_curve = _silhouette_curve_kmeans(Xs, k_range=range(2, 16))
-    ag_curve = _silhouette_curve_agglomerative(Xs, k_range=range(2, 16))
-    gm_curve = _silhouette_curve_gmm(Xs, k_range=range(2, 16))
-    br_curve = _silhouette_curve_birch(Xs, k_range=range(2, 16))
+    km_curve = _silhouette_curve_kmeans(Xs, k_range=range(2, 11))
+    ag_curve = _silhouette_curve_agglomerative(Xs, k_range=range(2, 11))
+    gm_curve = _silhouette_curve_gmm(Xs, k_range=range(2, 11))
+    br_curve = _silhouette_curve_birch(Xs, k_range=range(2, 11))
     km_curve.to_csv(model_results_dir / "kmeans_silhouette_vs_k.csv", index=False)
     ag_curve.to_csv(model_results_dir / "agglomerative_silhouette_vs_k.csv", index=False)
     gm_curve.to_csv(model_results_dir / "gmm_silhouette_vs_k.csv", index=False)
@@ -1072,7 +1085,7 @@ def main():
     _save_line_plot(br_curve, "K", "silhouette", "Birch silhouette vs K", figures_dir / "birch" / "birch_silhouette_vs_k.png")
 
     # GMM information-criteria diagnostics (BIC/AIC)
-    gm_bic_df, gm_bic_best, gm_aic_best = gmm_bic_aic_grid(Xs, k_range=range(2, 16))
+    gm_bic_df, gm_bic_best, gm_aic_best = gmm_bic_aic_grid(Xs, k_range=range(2, 11))
     gm_bic_df.to_csv(model_results_dir / "gmm_bic_aic.csv", index=False)
     _save_line_plot_hue(gm_bic_df, "K", "bic", "covariance_type", "GMM BIC vs K", figures_dir / "gmm" / "BIC" / "gmm_bic_vs_k.png")
     _save_line_plot_hue(gm_bic_df, "K", "aic", "covariance_type", "GMM AIC vs K", figures_dir / "gmm" / "AIC" / "gmm_aic_vs_k.png")
@@ -1281,23 +1294,23 @@ def main():
             gmm_bic_best_labels,
             figures_dir / "gmm" / "BIC" / "gmm_bic_accuracy_vs_rt_ellipses.png",
             label_name="gmm_bic_best_label",
-            x="accuracy",
+            x="total_correct",
             y="avg_rt",
-            xlabel="Accuracy",
+            xlabel="Total correct",
             ylabel="Avg RT (s)",
-            title="Accuracy vs Avg RT with cluster ellipses (GMM BIC)"
+            title="Total correct vs Avg RT with cluster ellipses (GMM BIC)"
         )
-        # NEW: Plot based on PCA findings (Accuracy vs Var RT)
+        # NEW: Plot based on PCA findings (previously Accuracy vs Var RT)
         _save_accuracy_speed_ellipse(
             feats,
             gmm_bic_best_labels,
             figures_dir / "gmm" / "BIC" / "gmm_bic_accuracy_vs_var_rt.png",
             label_name="gmm_bic_best_label",
-            x="accuracy",
+            x="total_correct",
             y="var_rt",
-            xlabel="Accuracy",
+            xlabel="Total correct",
             ylabel="Variance of RT",
-            title="Accuracy vs Variance of RT (GMM BIC)"
+            title="Total correct vs Variance of RT (GMM BIC)"
         )
         # NEW: Plot based on LDA loadings (Total correct vs Var RT)
         _save_accuracy_speed_ellipse(
