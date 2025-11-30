@@ -499,7 +499,10 @@ def _save_cluster_cards(feats: pd.DataFrame, feature_cols: list, labels: np.ndar
             if c in feature_cols:
                 feature_to_group[c] = g
     for k in zmean.index:
-        ser = zmean.loc[k].abs().sort_values(ascending=False)
+        cluster_z = zmean.loc[k]
+        ser = cluster_z[cluster_z > 0].sort_values(ascending=False)
+        if ser.empty:
+            continue
         selected = []
         used_groups = set()
         for f in ser.index:
@@ -1041,11 +1044,8 @@ def main():
     feature_cols = [
         "n_items",
         "total_correct",
-        "total_incorrect",
-        "accuracy",
         "avg_rt",
         "var_rt",
-        "rt_cv",
         "longest_correct_streak",
         "longest_incorrect_streak",
         "consecutive_correct_rate",
