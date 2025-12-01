@@ -1,3 +1,5 @@
+import argparse
+
 import numpy as np
 import pandas as pd
 from sklearn.mixture import GaussianMixture
@@ -5,11 +7,29 @@ from sklearn.mixture import GaussianMixture
 from config import K_RANGE, OUTPUT_DIR
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Cluster narrative embeddings with GMM+BIC.")
+    parser.add_argument(
+        "--template",
+        "-t",
+        choices=["A", "B", "C"],
+        default="A",
+        help="Narrative template version (A/B/C) whose embeddings to cluster.",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
-    emb_path = OUTPUT_DIR / "embeddings.npy"
-    index_path = OUTPUT_DIR / "embeddings_index.csv"
+    args = _parse_args()
+
+    template_dir = OUTPUT_DIR / f"template_{args.template.upper()}"
+    emb_path = template_dir / "embeddings.npy"
+    index_path = template_dir / "embeddings_index.csv"
     if not emb_path.exists() or not index_path.exists():
-        raise SystemExit("Embeddings or index not found. Run 02_compute_embeddings.py first.")
+        raise SystemExit(
+            "Embeddings or index not found for template {t}. Run 02_compute_embeddings.py first."
+            .format(t=args.template.upper())
+        )
     X = np.load(emb_path)
     index_df = pd.read_csv(index_path)
 
@@ -38,7 +58,7 @@ def main() -> None:
         raise SystemExit("Failed to fit any GMM models on embeddings.")
 
     results_df = pd.DataFrame(rows)
-    model_results_path = OUTPUT_DIR / "model_results_narrative.csv"
+    model_results_path = template_dir / "model_results_narrative.csv"
     results_df.to_csv(model_results_path, index=False)
 
     if best_labels is None or best_model_info is None:
@@ -47,7 +67,7 @@ def main() -> None:
     clusters_df = index_df.copy()
     clusters_df["narrative_gmm_bic_best_label"] = best_labels
     clusters_df["narrative_best_label"] = best_labels
-    out_path = OUTPUT_DIR / "narrative_clusters.csv"
+    out_path = template_dir / "narrative_clusters.csv"
     clusters_df.to_csv(out_path, index=False)
 
     print(f"Saved narrative clustering results to {out_path}")

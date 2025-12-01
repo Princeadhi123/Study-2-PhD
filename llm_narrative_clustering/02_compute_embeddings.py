@@ -1,4 +1,5 @@
 from pathlib import Path
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -19,21 +20,36 @@ def load_model():
     raise SystemExit(f"Unsupported embedding backend: {EMBEDDING_BACKEND}")
 
 
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Compute embeddings for narrative texts.")
+    parser.add_argument(
+        "--template",
+        "-t",
+        choices=["A", "B", "C"],
+        default="A",
+        help="Narrative template version (A/B/C) whose narratives to embed.",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
-    narratives_path = OUTPUT_DIR / "narratives.csv"
+    args = _parse_args()
+
+    template_dir = OUTPUT_DIR / f"template_{args.template.upper()}"
+    narratives_path = template_dir / "narratives.csv"
     if not narratives_path.exists():
-        raise SystemExit(f"Missing narratives file: {narratives_path}")
+        raise SystemExit(f"Missing narratives file for template {args.template.upper()}: {narratives_path}")
     df = pd.read_csv(narratives_path)
     texts = df["narrative_text"].astype(str).tolist()
 
     model = load_model()
     embeddings = model.encode(texts, batch_size=32, show_progress_bar=True, convert_to_numpy=True)
 
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    emb_path = OUTPUT_DIR / "embeddings.npy"
+    template_dir.mkdir(parents=True, exist_ok=True)
+    emb_path = template_dir / "embeddings.npy"
     np.save(emb_path, embeddings)
 
-    index_path = OUTPUT_DIR / "embeddings_index.csv"
+    index_path = template_dir / "embeddings_index.csv"
     index_df = df[["IDCode"]].copy()
     index_df["index"] = np.arange(len(index_df))
     index_df.to_csv(index_path, index=False)

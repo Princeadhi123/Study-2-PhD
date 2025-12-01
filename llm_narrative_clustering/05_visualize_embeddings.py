@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+import argparse
 
 import numpy as np
 import pandas as pd
@@ -10,18 +11,19 @@ from sklearn.manifold import TSNE
 from config import OUTPUT_DIR, STUDENT_CLUSTERS_PATH
 
 
-def _load_embeddings():
-    emb_path = OUTPUT_DIR / "embeddings.npy"
-    index_path = OUTPUT_DIR / "embeddings_index.csv"
+def _load_embeddings(template: str):
+    template_dir = OUTPUT_DIR / f"template_{template.upper()}"
+    emb_path = template_dir / "embeddings.npy"
+    index_path = template_dir / "embeddings_index.csv"
     if not emb_path.exists() or not index_path.exists():
         raise SystemExit("Embeddings or index not found. Run 02_compute_embeddings.py first.")
     X = np.load(emb_path)
     index_df = pd.read_csv(index_path)
-    return X, index_df
+    return X, index_df, template_dir
 
 
-def _load_clusters():
-    narrative_clusters_path = OUTPUT_DIR / "narrative_clusters.csv"
+def _load_clusters(template_dir: Path):
+    narrative_clusters_path = template_dir / "narrative_clusters.csv"
     if not narrative_clusters_path.exists():
         raise SystemExit("Missing narrative_clusters.csv. Run 03_cluster_embeddings.py first.")
     nar_clusters = pd.read_csv(narrative_clusters_path)
@@ -53,6 +55,7 @@ def _plot_scatter(
     y_col: str,
     x_label: str,
     y_label: str,
+    figures_dir: Path,
 ) -> None:
     try:
         import matplotlib.pyplot as plt
@@ -83,7 +86,6 @@ def _plot_scatter(
     ax.set_title(title)
     ax.grid(True, alpha=0.2)
 
-    figures_dir = OUTPUT_DIR / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
     out_path = figures_dir / filename
     fig.tight_layout()
@@ -94,9 +96,21 @@ def _plot_scatter(
 
 
 def main() -> None:
-    X, index_df = _load_embeddings()
-    nar_clusters, stud_clusters = _load_clusters()
+    parser = argparse.ArgumentParser(description="Visualise narrative embedding spaces for a given template.")
+    parser.add_argument(
+        "--template",
+        "-t",
+        choices=["A", "B", "C"],
+        default="A",
+        help="Narrative template version (A/B/C) whose embeddings/clusters to visualise.",
+    )
+    args = parser.parse_args()
+
+    X, index_df, template_dir = _load_embeddings(args.template)
+    nar_clusters, stud_clusters = _load_clusters(template_dir)
     coords = _prepare_coords(index_df, nar_clusters, stud_clusters)
+
+    figures_dir = template_dir / "figures"
 
     # --- PCA projection (baseline, as before) ---
     pca = PCA(n_components=2, random_state=42)
@@ -114,6 +128,7 @@ def main() -> None:
         y_col="dim2",
         x_label="PC1 (narrative embeddings)",
         y_label="PC2 (narrative embeddings)",
+        figures_dir=figures_dir,
     )
 
     _plot_scatter(
@@ -125,6 +140,7 @@ def main() -> None:
         y_col="dim2",
         x_label="PC1 (narrative embeddings)",
         y_label="PC2 (narrative embeddings)",
+        figures_dir=figures_dir,
     )
 
     _plot_scatter(
@@ -136,6 +152,7 @@ def main() -> None:
         y_col="dim2",
         x_label="PC1 (narrative embeddings)",
         y_label="PC2 (narrative embeddings)",
+        figures_dir=figures_dir,
     )
 
     # --- UMAP projection (narrative clusters only) ---
@@ -157,6 +174,7 @@ def main() -> None:
             y_col="dim2",
             x_label="UMAP1 (narrative embeddings)",
             y_label="UMAP2 (narrative embeddings)",
+            figures_dir=figures_dir,
         )
     except ImportError:
         print(
@@ -180,6 +198,7 @@ def main() -> None:
         y_col="dim2",
         x_label="t-SNE1 (narrative embeddings)",
         y_label="t-SNE2 (narrative embeddings)",
+        figures_dir=figures_dir,
     )
 
     # --- LDA projection (supervised by narrative clusters) ---
@@ -199,6 +218,7 @@ def main() -> None:
         y_col="dim2",
         x_label="LDA1 (narrative embeddings)",
         y_label="LDA2 (narrative embeddings)",
+        figures_dir=figures_dir,
     )
 
 
