@@ -1,0 +1,3 @@
+template_version,baseline,metric,value
+C,gmm_bic_best_label,adjusted_rand_index,0.18509629128051538
+C,gmm_aic_best_label,adjusted_rand_index,0.2043502998574478

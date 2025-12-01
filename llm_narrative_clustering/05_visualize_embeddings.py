@@ -7,12 +7,15 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
 
-from config import OUTPUT_DIR, STUDENT_CLUSTERS_PATH
+from config import OUTPUT_DIR, STUDENT_CLUSTERS_PATH, make_versioned_filename
 
 
 def _load_embeddings():
-    emb_path = OUTPUT_DIR / "embeddings.npy"
-    index_path = OUTPUT_DIR / "embeddings_index.csv"
+
+    emb_filename = make_versioned_filename("embeddings.npy")
+    index_filename = make_versioned_filename("embeddings_index.csv")
+    emb_path = OUTPUT_DIR / emb_filename
+    index_path = OUTPUT_DIR / index_filename
     if not emb_path.exists() or not index_path.exists():
         raise SystemExit("Embeddings or index not found. Run 02_compute_embeddings.py first.")
     X = np.load(emb_path)
@@ -21,7 +24,9 @@ def _load_embeddings():
 
 
 def _load_clusters():
-    narrative_clusters_path = OUTPUT_DIR / "narrative_clusters.csv"
+
+    narrative_clusters_filename = make_versioned_filename("narrative_clusters.csv")
+    narrative_clusters_path = OUTPUT_DIR / narrative_clusters_filename
     if not narrative_clusters_path.exists():
         raise SystemExit("Missing narrative_clusters.csv. Run 03_cluster_embeddings.py first.")
     nar_clusters = pd.read_csv(narrative_clusters_path)
@@ -109,7 +114,7 @@ def main() -> None:
         coords_pca,
         color_col="narrative_best_label",
         title="Narrative GMM-BIC clusters (embedding PCA)",
-        filename="embeddings_pca_narrative_clusters.png",
+        filename=make_versioned_filename("embeddings_pca_narrative_clusters.png"),
         x_col="dim1",
         y_col="dim2",
         x_label="PC1 (narrative embeddings)",
@@ -120,7 +125,7 @@ def main() -> None:
         coords_pca,
         color_col="gmm_bic_best_label",
         title="Numeric GMM-BIC clusters (embedding PCA)",
-        filename="embeddings_pca_gmm_bic_clusters.png",
+        filename=make_versioned_filename("embeddings_pca_gmm_bic_clusters.png"),
         x_col="dim1",
         y_col="dim2",
         x_label="PC1 (narrative embeddings)",
@@ -131,7 +136,7 @@ def main() -> None:
         coords_pca,
         color_col="gmm_aic_best_label",
         title="Numeric GMM-AIC clusters (embedding PCA)",
-        filename="embeddings_pca_gmm_aic_clusters.png",
+        filename=make_versioned_filename("embeddings_pca_gmm_aic_clusters.png"),
         x_col="dim1",
         y_col="dim2",
         x_label="PC1 (narrative embeddings)",
@@ -152,7 +157,7 @@ def main() -> None:
             coords_umap,
             color_col="narrative_best_label",
             title="Narrative GMM-BIC clusters (embedding UMAP)",
-            filename="embeddings_umap_narrative_clusters.png",
+            filename=make_versioned_filename("embeddings_umap_narrative_clusters.png"),
             x_col="dim1",
             y_col="dim2",
             x_label="UMAP1 (narrative embeddings)",
@@ -175,7 +180,7 @@ def main() -> None:
         coords_tsne,
         color_col="narrative_best_label",
         title="Narrative GMM-BIC clusters (embedding t-SNE)",
-        filename="embeddings_tsne_narrative_clusters.png",
+        filename=make_versioned_filename("embeddings_tsne_narrative_clusters.png"),
         x_col="dim1",
         y_col="dim2",
         x_label="t-SNE1 (narrative embeddings)",
@@ -194,7 +199,7 @@ def main() -> None:
         coords_lda,
         color_col="narrative_best_label",
         title="Narrative GMM-BIC clusters (embedding LDA)",
-        filename="embeddings_lda_narrative_clusters.png",
+        filename=make_versioned_filename("embeddings_lda_narrative_clusters.png"),
         x_col="dim1",
         y_col="dim2",
         x_label="LDA1 (narrative embeddings)",

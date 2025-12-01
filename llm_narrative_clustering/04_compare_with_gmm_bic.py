@@ -1,7 +1,13 @@
 import pandas as pd
 from sklearn.metrics import adjusted_rand_score
 
-from config import MARKS_WITH_CLUSTERS_PATH, OUTPUT_DIR, STUDENT_CLUSTERS_PATH
+from config import (
+    MARKS_WITH_CLUSTERS_PATH,
+    NARRATIVE_TEMPLATE_VERSION,
+    OUTPUT_DIR,
+    STUDENT_CLUSTERS_PATH,
+    make_versioned_filename,
+)
 
 
 def _detect_id_col(df: pd.DataFrame) -> str:
@@ -15,8 +21,8 @@ def _detect_id_col(df: pd.DataFrame) -> str:
 
 
 def main() -> None:
-    narrative_clusters_path = OUTPUT_DIR / "narrative_clusters.csv"
-    narratives_path = OUTPUT_DIR / "narratives.csv"
+    narrative_clusters_path = OUTPUT_DIR / make_versioned_filename("narrative_clusters.csv")
+    narratives_path = OUTPUT_DIR / make_versioned_filename("narratives.csv")
     if not narrative_clusters_path.exists():
         raise SystemExit(f"Missing narrative_clusters.csv at {narrative_clusters_path}")
     if not narratives_path.exists():
@@ -37,25 +43,38 @@ def main() -> None:
 
     # Overlap and ARI for BIC-based numeric GMM vs narrative GMM.
     overlap_bic = pd.crosstab(base["gmm_bic_best_label"], base["narrative_best_label"])
-    overlap_bic_path = OUTPUT_DIR / "gmm_bic_vs_narrative_overlap.csv"
+    overlap_bic_filename = make_versioned_filename("gmm_bic_vs_narrative_overlap.csv")
+    overlap_bic_path = OUTPUT_DIR / overlap_bic_filename
     overlap_bic.to_csv(overlap_bic_path)
 
     ari_bic = float(adjusted_rand_score(base["gmm_bic_best_label"], base["narrative_best_label"]))
 
     # Overlap and ARI for AIC-based numeric GMM vs narrative GMM.
     overlap_aic = pd.crosstab(base["gmm_aic_best_label"], base["narrative_best_label"])
-    overlap_aic_path = OUTPUT_DIR / "gmm_aic_vs_narrative_overlap.csv"
+    overlap_aic_filename = make_versioned_filename("gmm_aic_vs_narrative_overlap.csv")
+    overlap_aic_path = OUTPUT_DIR / overlap_aic_filename
     overlap_aic.to_csv(overlap_aic_path)
 
     ari_aic = float(adjusted_rand_score(base["gmm_aic_best_label"], base["narrative_best_label"]))
 
     metrics_df = pd.DataFrame(
         [
-            {"baseline": "gmm_bic_best_label", "metric": "adjusted_rand_index", "value": ari_bic},
-            {"baseline": "gmm_aic_best_label", "metric": "adjusted_rand_index", "value": ari_aic},
+            {
+                "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+                "baseline": "gmm_bic_best_label",
+                "metric": "adjusted_rand_index",
+                "value": ari_bic,
+            },
+            {
+                "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+                "baseline": "gmm_aic_best_label",
+                "metric": "adjusted_rand_index",
+                "value": ari_aic,
+            },
         ]
     )
-    ari_path = OUTPUT_DIR / "gmm_vs_narrative_metrics.csv"
+    ari_filename = make_versioned_filename("gmm_vs_narrative_metrics.csv")
+    ari_path = OUTPUT_DIR / ari_filename
     metrics_df.to_csv(ari_path, index=False)
 
     if MARKS_WITH_CLUSTERS_PATH.exists():
@@ -76,8 +95,10 @@ def main() -> None:
             gmm_group = merged.groupby("gmm_bic_best_label")[numeric_cols].mean().reset_index()
             narrative_group = merged.groupby("narrative_best_label")[numeric_cols].mean().reset_index()
 
-            gmm_marks_path = OUTPUT_DIR / "marks_by_gmm_bic.csv"
-            narrative_marks_path = OUTPUT_DIR / "marks_by_narrative.csv"
+            gmm_marks_filename = make_versioned_filename("marks_by_gmm_bic.csv")
+            narrative_marks_filename = make_versioned_filename("marks_by_narrative.csv")
+            gmm_marks_path = OUTPUT_DIR / gmm_marks_filename
+            narrative_marks_path = OUTPUT_DIR / narrative_marks_filename
             gmm_group.to_csv(gmm_marks_path, index=False)
             narrative_group.to_csv(narrative_marks_path, index=False)
 
@@ -90,7 +111,8 @@ def main() -> None:
 
     if examples:
         examples_df = pd.concat(examples, ignore_index=True)
-        examples_path = OUTPUT_DIR / "example_profiles.csv"
+        examples_filename = make_versioned_filename("example_profiles.csv")
+        examples_path = OUTPUT_DIR / examples_filename
         examples_df.to_csv(examples_path, index=False)
 
     print(f"Saved BIC overlap table to {overlap_bic_path}")
