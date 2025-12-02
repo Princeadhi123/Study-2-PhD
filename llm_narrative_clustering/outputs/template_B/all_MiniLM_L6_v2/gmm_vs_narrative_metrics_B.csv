@@ -1,0 +1,4 @@
+template_version,baseline,metric,value
+B,gmm_bic_best_label,adjusted_rand_index,0.30196826803489474
+B,gmm_aic_best_label,adjusted_rand_index,0.2761568887328854
+B,narrative_best_label,silhouette_cosine,0.4949219226837158

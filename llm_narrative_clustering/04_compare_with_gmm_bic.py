@@ -1,5 +1,6 @@
+import numpy as np
 import pandas as pd
-from sklearn.metrics import adjusted_rand_score
+from sklearn.metrics import adjusted_rand_score, silhouette_score
 
 from config import (
     MARKS_WITH_CLUSTERS_PATH,
@@ -57,22 +58,46 @@ def main() -> None:
 
     ari_aic = float(adjusted_rand_score(base["gmm_aic_best_label"], base["narrative_best_label"]))
 
-    metrics_df = pd.DataFrame(
-        [
+    # Silhouette score for narrative clusters based on embeddings (internal validity).
+    silhouette_value = None
+    emb_filename = make_versioned_filename("embeddings.npy")
+    emb_path = OUTPUT_DIR / emb_filename
+    if emb_path.exists():
+        try:
+            X = np.load(emb_path)
+            labels = nar_clusters["narrative_best_label"].to_numpy()
+            label_counts = pd.Series(labels).value_counts()
+            if len(label_counts) >= 2 and (label_counts > 1).all():
+                silhouette_value = float(silhouette_score(X, labels, metric="cosine"))
+        except Exception:
+            silhouette_value = None
+
+    metrics_rows = [
+        {
+            "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+            "baseline": "gmm_bic_best_label",
+            "metric": "adjusted_rand_index",
+            "value": ari_bic,
+        },
+        {
+            "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+            "baseline": "gmm_aic_best_label",
+            "metric": "adjusted_rand_index",
+            "value": ari_aic,
+        },
+    ]
+
+    if silhouette_value is not None:
+        metrics_rows.append(
             {
                 "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
-                "baseline": "gmm_bic_best_label",
-                "metric": "adjusted_rand_index",
-                "value": ari_bic,
-            },
-            {
-                "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
-                "baseline": "gmm_aic_best_label",
-                "metric": "adjusted_rand_index",
-                "value": ari_aic,
-            },
-        ]
-    )
+                "baseline": "narrative_best_label",
+                "metric": "silhouette_cosine",
+                "value": silhouette_value,
+            }
+        )
+
+    metrics_df = pd.DataFrame(metrics_rows)
     ari_filename = make_versioned_filename("gmm_vs_narrative_metrics.csv")
     ari_path = OUTPUT_DIR / ari_filename
     metrics_df.to_csv(ari_path, index=False)
