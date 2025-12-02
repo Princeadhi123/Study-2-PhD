@@ -38,7 +38,7 @@ CLUSTER_COLORS = [
     "#A6761D",  # ochre
 ]
 
-EXCLUDED_PLOT_FEATURES = {"rt_cv", "total_incorrect", "accuracy"}
+EXCLUDED_PLOT_FEATURES = set()
 EXCLUDED_STUDENTS = {"hopi338", "mory430", "magu282", "zade686"}
 
 
@@ -1033,8 +1033,11 @@ def main():
     feature_cols = [
         "n_items",
         "total_correct",
+        "total_incorrect",
+        "accuracy",
         "avg_rt",
         "var_rt",
+        "rt_cv",
         "longest_correct_streak",
         "longest_incorrect_streak",
         "consecutive_correct_rate",

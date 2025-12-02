@@ -2,32 +2,32 @@ Clustering Performance Report
 ============================
 
 N students: 537
-Features used: n_items, total_correct, avg_rt, var_rt, longest_correct_streak, longest_incorrect_streak, consecutive_correct_rate, response_variance
+Features used: n_items, total_correct, total_incorrect, accuracy, avg_rt, var_rt, rt_cv, longest_correct_streak, longest_incorrect_streak, consecutive_correct_rate, response_variance
 
 KMeans
   best_k: 2
-  silhouette: 0.33210970474305257
+  silhouette: 0.3410694750001678
 
 Agglomerative
   best_k: 2
-  silhouette: 0.3259039316518845
+  silhouette: 0.3295990176735135
 
 Birch
   best_k: 2
-  silhouette: 0.3918204447549025
+  silhouette: 0.44090768448895057
 
 GMM
-  best_k: 3
+  best_k: 2
   covariance_type: tied
-  silhouette: 0.3592416140974178
+  silhouette: 0.44490495828641474
 
 GMM model selection (information criteria)
-  best_by_BIC: k=7, cov=full, BIC=-3608.002987890618, AIC=-4953.806389566402
-  best_by_AIC: k=10, cov=full, BIC=-3350.4431366046592, AIC=-5274.8562810391395
+  best_by_BIC: k=6, cov=full, BIC=-14023.496340074507, AIC=-16025.057450210148
+  best_by_AIC: k=10, cov=full, BIC=-13157.905917978966, AIC=-16496.69843360137
 
 Best overall clustering (by silhouette)
-  algorithm: birch
-  silhouette: 0.3918204447549025
+  algorithm: gmm
+  silhouette: 0.44490495828641474
   k: 2
-  threshold: 0.9
+  covariance_type: tied
 
