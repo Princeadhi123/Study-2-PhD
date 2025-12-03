@@ -98,7 +98,61 @@ def _plot_scatter(
     print(f"Saved {title} plot to {out_path}")
 
 
+def _plot_narrative_k_selection() -> None:
+    results_filename = make_versioned_filename("model_results_narrative.csv")
+    results_path = OUTPUT_DIR / results_filename
+    if not results_path.exists():
+        return
+
+    df = pd.read_csv(results_path)
+    required_cols = {"K", "covariance_type", "bic"}
+    if not required_cols.issubset(df.columns) or df.empty:
+        return
+
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:
+        raise SystemExit(
+            "matplotlib is required for visualization. Install it with:\n"
+            "pip install matplotlib"
+        ) from exc
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    for cov, sub in df.groupby("covariance_type"):
+        sub_sorted = sub.sort_values("K")
+        ax.plot(sub_sorted["K"], sub_sorted["bic"], marker="o", label=cov)
+
+    best_idx = df["bic"].idxmin()
+    best_row = df.loc[best_idx]
+    best_k = int(best_row["K"])
+    best_cov = str(best_row["covariance_type"])
+    best_bic = float(best_row["bic"])
+    ax.axvline(best_k, color="red", linestyle="--", alpha=0.7)
+
+    ax.set_xlabel("Number of narrative clusters (K)")
+    ax.set_ylabel("BIC")
+    ax.set_title(f"Narrative GMM model selection by BIC (best K={best_k}, cov={best_cov})")
+    ax.grid(True, alpha=0.2)
+    ax.legend(title="covariance_type")
+
+    figures_dir = OUTPUT_DIR / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    out_path = figures_dir / make_versioned_filename("narrative_gmm_bic_vs_k.png")
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=200)
+    plt.close(fig)
+
+    print(
+        "Selected narrative GMM by BIC: K={k}, cov={cov}, BIC={bic:.2f}".format(
+            k=best_k, cov=best_cov, bic=best_bic
+        )
+    )
+    print(f"Saved narrative GMM model selection plot to {out_path}")
+
+
 def main() -> None:
+    _plot_narrative_k_selection()
     X, index_df = _load_embeddings()
     nar_clusters, stud_clusters = _load_clusters()
     coords = _prepare_coords(index_df, nar_clusters, stud_clusters)
