@@ -1,4 +1,4 @@
 template_version,baseline,metric,value
-A,gmm_bic_best_label,adjusted_rand_index,0.1946403848622607
-A,gmm_aic_best_label,adjusted_rand_index,0.22232351301068665
+A,gmm_bic_best_label,adjusted_rand_index,0.17297470423238623
+A,gmm_aic_best_label,adjusted_rand_index,0.22681995686412906
 A,narrative_best_label,silhouette_cosine,0.571769654750824

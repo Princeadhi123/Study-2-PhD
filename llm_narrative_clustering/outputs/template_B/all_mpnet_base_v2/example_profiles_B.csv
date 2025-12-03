@@ -1,51 +1,51 @@
 IDCode,gmm_bic_best_label,gmm_aic_best_label,narrative_best_label,narrative_text
-pyqy867,6,3,0,Accuracy high; speed moderate; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct occasional.
-hiwu738,0,1,0,Accuracy high; speed fast; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct frequent.
-sejy814,0,1,0,Accuracy high; speed fast; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct frequent.
-cani065,6,3,0,Accuracy high; speed moderate; timing moderately variable; correct streak long; incorrect streak short; consecutive correct occasional.
-jese656,0,1,0,Accuracy high; speed moderate; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct frequent.
-paxi044,2,6,1,Accuracy low; speed fast; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-node314,5,5,1,Accuracy low; speed slow; timing highly variable; correct streak moderate; incorrect streak moderate; consecutive correct rare.
-nysa238,3,4,1,Accuracy low; speed slow; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct rare.
-doza768,4,5,1,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak moderate; consecutive correct rare.
-sapu497,5,2,1,Accuracy low; speed slow; timing moderately variable; correct streak moderate; incorrect streak long; consecutive correct rare.
-tywo507,0,1,2,Accuracy high; speed fast; timing stable; correct streak moderate; incorrect streak short; consecutive correct frequent.
-tepu554,0,1,2,Accuracy high; speed moderate; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
-jaxe723,0,1,2,Accuracy high; speed moderate; timing stable; correct streak moderate; incorrect streak short; consecutive correct frequent.
-xohi599,6,3,2,Accuracy high; speed fast; timing stable; correct streak moderate; incorrect streak short; consecutive correct frequent.
-bevi590,0,1,2,Accuracy high; speed fast; timing stable; correct streak moderate; incorrect streak short; consecutive correct frequent.
-mybu425,5,0,3,Accuracy medium; speed moderate; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-kisa730,4,5,3,Accuracy medium; speed slow; timing highly variable; correct streak moderate; incorrect streak moderate; consecutive correct occasional.
-dila385,6,0,3,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak moderate; consecutive correct occasional.
-bajo794,6,3,3,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak moderate; consecutive correct occasional.
-neku787,6,3,3,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct occasional.
-syvi476,2,8,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
-nuhi137,3,4,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
-gery678,2,6,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
-kojo378,3,4,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
-ninu744,2,8,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
-pivi588,1,7,5,Accuracy high; speed moderate; timing highly variable; correct streak long; incorrect streak short; consecutive correct frequent.
-weda047,0,1,5,Accuracy high; speed fast; timing moderately variable; correct streak long; incorrect streak short; consecutive correct frequent.
-zucy684,6,3,5,Accuracy high; speed slow; timing highly variable; correct streak long; incorrect streak moderate; consecutive correct frequent.
-loxu319,1,7,5,Accuracy high; speed slow; timing moderately variable; correct streak long; incorrect streak short; consecutive correct frequent.
-huho039,6,3,5,Accuracy medium; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct frequent.
-hyku415,4,5,6,Accuracy medium; speed slow; timing highly variable; correct streak long; incorrect streak short; consecutive correct occasional.
-kuqy630,6,3,6,Accuracy high; speed slow; timing highly variable; correct streak moderate; incorrect streak short; consecutive correct occasional.
-bejy525,5,0,6,Accuracy medium; speed slow; timing highly variable; correct streak long; incorrect streak long; consecutive correct occasional.
-gola051,5,0,6,Accuracy medium; speed fast; timing stable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-xoky149,5,0,6,Accuracy medium; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct occasional.
-zoka501,5,0,7,Accuracy medium; speed moderate; timing stable; correct streak moderate; incorrect streak moderate; consecutive correct rare.
-fari709,2,6,7,Accuracy low; speed moderate; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
-najy705,3,4,7,Accuracy low; speed moderate; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
-xamy888,5,2,7,Accuracy low; speed moderate; timing stable; correct streak short; incorrect streak moderate; consecutive correct rare.
-zufa556,2,6,7,Accuracy low; speed moderate; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
-vuho146,5,2,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-woza563,5,5,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-pyzo535,2,6,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-soru820,3,4,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-pusu302,2,6,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-boqe999,0,1,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
-dero258,0,1,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
-fite050,0,1,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak long; consecutive correct frequent.
-lany944,1,7,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
-hufy497,0,1,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
+pyqy867,3,6,0,Accuracy high; speed moderate; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct occasional.
+hiwu738,3,6,0,Accuracy high; speed fast; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct frequent.
+sejy814,3,6,0,Accuracy high; speed fast; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct frequent.
+cani065,3,6,0,Accuracy high; speed moderate; timing moderately variable; correct streak long; incorrect streak short; consecutive correct occasional.
+jese656,3,6,0,Accuracy high; speed moderate; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct frequent.
+paxi044,2,1,1,Accuracy low; speed fast; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
+node314,0,5,1,Accuracy low; speed slow; timing highly variable; correct streak moderate; incorrect streak moderate; consecutive correct rare.
+nysa238,4,3,1,Accuracy low; speed slow; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct rare.
+doza768,4,3,1,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak moderate; consecutive correct rare.
+sapu497,0,5,1,Accuracy low; speed slow; timing moderately variable; correct streak moderate; incorrect streak long; consecutive correct rare.
+tywo507,3,6,2,Accuracy high; speed fast; timing stable; correct streak moderate; incorrect streak short; consecutive correct frequent.
+tepu554,3,6,2,Accuracy high; speed moderate; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
+jaxe723,3,6,2,Accuracy high; speed moderate; timing stable; correct streak moderate; incorrect streak short; consecutive correct frequent.
+xohi599,3,9,2,Accuracy high; speed fast; timing stable; correct streak moderate; incorrect streak short; consecutive correct frequent.
+bevi590,3,6,2,Accuracy high; speed fast; timing stable; correct streak moderate; incorrect streak short; consecutive correct frequent.
+mybu425,0,8,3,Accuracy medium; speed moderate; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
+kisa730,5,7,3,Accuracy medium; speed slow; timing highly variable; correct streak moderate; incorrect streak moderate; consecutive correct occasional.
+dila385,0,0,3,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak moderate; consecutive correct occasional.
+bajo794,3,9,3,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak moderate; consecutive correct occasional.
+neku787,3,0,3,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak short; consecutive correct occasional.
+syvi476,2,4,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
+nuhi137,4,4,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
+gery678,2,1,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
+kojo378,4,4,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
+ninu744,2,4,4,Accuracy low; speed fast; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
+pivi588,1,2,5,Accuracy high; speed moderate; timing highly variable; correct streak long; incorrect streak short; consecutive correct frequent.
+weda047,1,6,5,Accuracy high; speed fast; timing moderately variable; correct streak long; incorrect streak short; consecutive correct frequent.
+zucy684,5,0,5,Accuracy high; speed slow; timing highly variable; correct streak long; incorrect streak moderate; consecutive correct frequent.
+loxu319,1,2,5,Accuracy high; speed slow; timing moderately variable; correct streak long; incorrect streak short; consecutive correct frequent.
+huho039,5,0,5,Accuracy medium; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct frequent.
+hyku415,5,7,6,Accuracy medium; speed slow; timing highly variable; correct streak long; incorrect streak short; consecutive correct occasional.
+kuqy630,5,0,6,Accuracy high; speed slow; timing highly variable; correct streak moderate; incorrect streak short; consecutive correct occasional.
+bejy525,0,0,6,Accuracy medium; speed slow; timing highly variable; correct streak long; incorrect streak long; consecutive correct occasional.
+gola051,0,5,6,Accuracy medium; speed fast; timing stable; correct streak moderate; incorrect streak long; consecutive correct occasional.
+xoky149,0,5,6,Accuracy medium; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct occasional.
+zoka501,0,5,7,Accuracy medium; speed moderate; timing stable; correct streak moderate; incorrect streak moderate; consecutive correct rare.
+fari709,2,1,7,Accuracy low; speed moderate; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
+najy705,4,4,7,Accuracy low; speed moderate; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
+xamy888,0,5,7,Accuracy low; speed moderate; timing stable; correct streak short; incorrect streak moderate; consecutive correct rare.
+zufa556,2,1,7,Accuracy low; speed moderate; timing stable; correct streak short; incorrect streak long; consecutive correct rare.
+vuho146,4,5,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
+woza563,4,3,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
+pyzo535,2,1,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
+soru820,4,3,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
+pusu302,2,1,8,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
+boqe999,1,6,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
+dero258,3,6,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
+fite050,3,6,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak long; consecutive correct frequent.
+lany944,1,2,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
+hufy497,1,6,9,Accuracy high; speed fast; timing stable; correct streak long; incorrect streak short; consecutive correct frequent.
