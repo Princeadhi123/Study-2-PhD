@@ -1,6 +1,11 @@
 import numpy as np
 import pandas as pd
-from sklearn.metrics import adjusted_rand_score, silhouette_score
+from sklearn.metrics import (
+    adjusted_rand_score,
+    calinski_harabasz_score,
+    davies_bouldin_score,
+    silhouette_score,
+)
 
 from config import (
     MARKS_WITH_CLUSTERS_PATH,
@@ -58,19 +63,22 @@ def main() -> None:
 
     ari_aic = float(adjusted_rand_score(base["gmm_aic_best_label"], base["narrative_best_label"]))
 
-    # Silhouette score for narrative clusters based on embeddings (internal validity).
-    silhouette_value = None
-    emb_filename = make_versioned_filename("embeddings.npy")
-    emb_path = OUTPUT_DIR / emb_filename
-    if emb_path.exists():
-        try:
-            X = np.load(emb_path)
-            labels = nar_clusters["narrative_best_label"].to_numpy()
-            label_counts = pd.Series(labels).value_counts()
-            if len(label_counts) >= 2 and (label_counts > 1).all():
-                silhouette_value = float(silhouette_score(X, labels, metric="cosine"))
-        except Exception:
-            silhouette_value = None
+    metric_descriptions = {
+        "adjusted_rand_index": (
+            "Agreement between baseline cluster labels and narrative_best_label "
+            "(1 = perfect match, 0 ≈ random)."
+        ),
+        "silhouette_cosine": (
+            "Cluster separation in narrative embedding space using cosine distance "
+            "(higher is better, max = 1)."
+        ),
+        "calinski_harabasz": (
+            "Calinski-Harabasz index in narrative embedding space (higher is better)."
+        ),
+        "davies_bouldin": (
+            "Davies-Bouldin index in narrative embedding space (lower is better)."
+        ),
+    }
 
     metrics_rows = [
         {
@@ -78,24 +86,111 @@ def main() -> None:
             "baseline": "gmm_bic_best_label",
             "metric": "adjusted_rand_index",
             "value": ari_bic,
+            "description": metric_descriptions["adjusted_rand_index"],
         },
         {
             "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
             "baseline": "gmm_aic_best_label",
             "metric": "adjusted_rand_index",
             "value": ari_aic,
+            "description": metric_descriptions["adjusted_rand_index"],
         },
     ]
 
-    if silhouette_value is not None:
-        metrics_rows.append(
-            {
-                "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
-                "baseline": "narrative_best_label",
-                "metric": "silhouette_cosine",
-                "value": silhouette_value,
-            }
-        )
+    # Embedding-space internal indices for each clustering (numeric BIC, numeric AIC, narrative).
+    emb_filename = make_versioned_filename("embeddings.npy")
+    emb_index_filename = make_versioned_filename("embeddings_index.csv")
+    emb_path = OUTPUT_DIR / emb_filename
+    emb_index_path = OUTPUT_DIR / emb_index_filename
+
+    if emb_path.exists() and emb_index_path.exists():
+        try:
+            X_all = np.load(emb_path)
+            index_df = pd.read_csv(emb_index_path)
+
+            # Restrict to students present in both embeddings and base (i.e., have all labels).
+            emb_base = index_df.merge(
+                base[[
+                    "IDCode",
+                    "gmm_bic_best_label",
+                    "gmm_aic_best_label",
+                    "narrative_best_label",
+                ]],
+                on="IDCode",
+                how="inner",
+            )
+
+            if not emb_base.empty:
+                indices = emb_base["index"].to_numpy(dtype=int)
+                X = X_all[indices]
+
+                label_sets = {
+                    "narrative_best_label": emb_base["narrative_best_label"].to_numpy(),
+                    "gmm_bic_best_label": emb_base["gmm_bic_best_label"].to_numpy(),
+                    "gmm_aic_best_label": emb_base["gmm_aic_best_label"].to_numpy(),
+                }
+
+                for baseline_name, labels in label_sets.items():
+                    label_counts = pd.Series(labels).value_counts()
+                    # Need at least 2 clusters, each with at least 2 members, for stable indices.
+                    if len(label_counts) < 2 or not (label_counts > 1).all():
+                        continue
+
+                    sil_val = None
+                    ch_val = None
+                    db_val = None
+
+                    try:
+                        sil_val = float(silhouette_score(X, labels, metric="cosine"))
+                    except Exception:
+                        pass
+
+                    try:
+                        ch_val = float(calinski_harabasz_score(X, labels))
+                    except Exception:
+                        pass
+
+                    try:
+                        db_val = float(davies_bouldin_score(X, labels))
+                    except Exception:
+                        pass
+
+                    if sil_val is not None:
+                        metrics_rows.append(
+                            {
+                                "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+                                "baseline": baseline_name,
+                                "metric": "silhouette_cosine",
+                                "value": sil_val,
+                                "description": metric_descriptions["silhouette_cosine"],
+                            }
+                        )
+
+                    if ch_val is not None:
+                        metrics_rows.append(
+                            {
+                                "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+                                "baseline": baseline_name,
+                                "metric": "calinski_harabasz",
+                                "value": ch_val,
+                                "description": metric_descriptions["calinski_harabasz"],
+                            }
+                        )
+
+                    if db_val is not None:
+                        metrics_rows.append(
+                            {
+                                "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+                                "baseline": baseline_name,
+                                "metric": "davies_bouldin",
+                                "value": db_val,
+                                "description": metric_descriptions["davies_bouldin"],
+                            }
+                        )
+        except Exception:
+            # If anything goes wrong with embedding-based metrics, skip them silently
+            # so that ARI results are still produced.
+            pass
 
     metrics_df = pd.DataFrame(metrics_rows)
     ari_filename = make_versioned_filename("gmm_vs_narrative_metrics.csv")
