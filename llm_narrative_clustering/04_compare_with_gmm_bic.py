@@ -6,11 +6,13 @@ from sklearn.metrics import (
     davies_bouldin_score,
     silhouette_score,
 )
+from scipy.stats import f as f_dist
 
 from config import (
     MARKS_WITH_CLUSTERS_PATH,
     NARRATIVE_TEMPLATE_VERSION,
     OUTPUT_DIR,
+    OUTPUT_ROOT,
     STUDENT_CLUSTERS_PATH,
     make_versioned_filename,
 )
@@ -221,6 +223,102 @@ def main() -> None:
             narrative_marks_path = OUTPUT_DIR / narrative_marks_filename
             gmm_group.to_csv(gmm_marks_path, index=False)
             narrative_group.to_csv(narrative_marks_path, index=False)
+
+            # One-way ANOVA and effect sizes for marks by cluster label.
+            anova_rows: list[dict] = []
+            cluster_labels = ("gmm_bic_best_label", "gmm_aic_best_label", "narrative_best_label")
+
+            for cluster_col in cluster_labels:
+                if cluster_col not in merged.columns:
+                    continue
+
+                for col in numeric_cols:
+                    # Skip ANOVA for the overall missing-work metric; it will still be
+                    # included in the descriptive marks_by_* summaries.
+                    if col.lower() == "missing_total":
+                        continue
+
+                    sub = merged[[cluster_col, col]].dropna()
+                    if sub.empty:
+                        continue
+
+                    grouped = list(sub.groupby(cluster_col)[col])
+                    if len(grouped) < 2:
+                        continue
+
+                    groups = [g.values for _, g in grouped]
+                    sizes = [len(g) for g in groups]
+                    # Require at least 2 observations per group for stability.
+                    if any(n < 2 for n in sizes):
+                        continue
+
+                    n_total = sum(sizes)
+                    if n_total <= len(groups):
+                        continue
+
+                    grand_mean = float(sub[col].mean())
+                    ss_between = float(
+                        sum(n * (float(g.mean()) - grand_mean) ** 2 for n, g in zip(sizes, groups))
+                    )
+                    ss_within = float(sum(((g - float(g.mean())) ** 2).sum() for g in groups))
+                    df_between = len(groups) - 1
+                    df_within = n_total - len(groups)
+                    if df_within <= 0 or ss_within <= 0.0:
+                        continue
+
+                    ms_between = ss_between / df_between
+                    ms_within = ss_within / df_within
+                    f_stat = ms_between / ms_within
+
+                    try:
+                        p_value = float(1.0 - f_dist.cdf(f_stat, df_between, df_within))
+                    except Exception:
+                        p_value = float("nan")
+
+                    ss_total = ss_between + ss_within
+                    eta_squared = ss_between / ss_total if ss_total > 0.0 else float("nan")
+
+                    anova_rows.append(
+                        {
+                            "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+                            "cluster_label": cluster_col,
+                            "outcome": col,
+                            "f_statistic": f_stat,
+                            "df_between": df_between,
+                            "df_within": df_within,
+                            "p_value": p_value,
+                            "eta_squared": eta_squared,
+                        }
+                    )
+
+            if anova_rows:
+                anova_df = pd.DataFrame(anova_rows)
+
+                # --- Split ANOVA outputs into narrative (template-specific) and
+                # numeric (template-independent) parts.
+                numeric_mask = anova_df["cluster_label"].isin(
+                    ["gmm_bic_best_label", "gmm_aic_best_label"]
+                )
+                narrative_mask = anova_df["cluster_label"] == "narrative_best_label"
+
+                # Narrative ANOVA: keep only narrative_best_label rows in each
+                # template/model directory so these files truly reflect the
+                # template-specific narrative clustering.
+                if narrative_mask.any():
+                    narrative_df = anova_df[narrative_mask].copy()
+                    anova_filename = make_versioned_filename("marks_anova_by_cluster.csv")
+                    anova_path = OUTPUT_DIR / anova_filename
+                    narrative_df.to_csv(anova_path, index=False)
+
+                # Numeric ANOVA (BIC/AIC): write a single global file under the
+                # outputs/ root, marking template_version as GLOBAL so it is
+                # clear these results are not tied to any particular narrative
+                # template.
+                if numeric_mask.any():
+                    numeric_df = anova_df[numeric_mask].copy()
+                    numeric_df["template_version"] = "GLOBAL"
+                    numeric_anova_path = OUTPUT_ROOT / "numeric_marks_anova_by_cluster.csv"
+                    numeric_df.to_csv(numeric_anova_path, index=False)
 
     examples = []
     for _, group in base.groupby("narrative_best_label"):
