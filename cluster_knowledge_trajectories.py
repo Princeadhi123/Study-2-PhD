@@ -10,7 +10,11 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
 from sklearn.manifold import TSNE
 from sklearn.cluster import KMeans, AgglomerativeClustering, DBSCAN, Birch
-from sklearn.metrics import silhouette_score
+from sklearn.metrics import (
+    silhouette_score,
+    calinski_harabasz_score,
+    davies_bouldin_score,
+)
 from sklearn.mixture import GaussianMixture
 from sklearn.neighbors import NearestNeighbors
 
@@ -991,11 +995,31 @@ def write_report(report_path: Path, summary: Dict):
     lines.append(f"  silhouette: {gm.get('sil')}\n\n")
 
     if gm_bic or gm_aic:
-        lines.append("GMM model selection (information criteria)\n")
+        lines.append("GMM model selection (information criteria and internal validity)\n")
         if gm_bic:
-            lines.append(f"  best_by_BIC: k={gm_bic.get('k')}, cov={gm_bic.get('covariance_type')}, BIC={gm_bic.get('bic')}, AIC={gm_bic.get('aic')}\n")
+            lines.append(
+                "  best_by_BIC: k={k}, cov={cov}, BIC={bic}, AIC={aic}, silhouette={sil}, CH={ch}, DB={db}\n".format(
+                    k=gm_bic.get("k"),
+                    cov=gm_bic.get("covariance_type"),
+                    bic=gm_bic.get("bic"),
+                    aic=gm_bic.get("aic"),
+                    sil=gm_bic.get("sil"),
+                    ch=gm_bic.get("ch"),
+                    db=gm_bic.get("db"),
+                )
+            )
         if gm_aic:
-            lines.append(f"  best_by_AIC: k={gm_aic.get('k')}, cov={gm_aic.get('covariance_type')}, BIC={gm_aic.get('bic')}, AIC={gm_aic.get('aic')}\n")
+            lines.append(
+                "  best_by_AIC: k={k}, cov={cov}, BIC={bic}, AIC={aic}, silhouette={sil}, CH={ch}, DB={db}\n".format(
+                    k=gm_aic.get("k"),
+                    cov=gm_aic.get("covariance_type"),
+                    bic=gm_aic.get("bic"),
+                    aic=gm_aic.get("aic"),
+                    sil=gm_aic.get("sil"),
+                    ch=gm_aic.get("ch"),
+                    db=gm_aic.get("db"),
+                )
+            )
         lines.append("\n")
     if best_overall:
         lines.append("Best overall clustering (by silhouette)\n")
@@ -1083,18 +1107,50 @@ def main():
     _save_line_plot_hue(gm_bic_df, "K", "aic", "covariance_type", "GMM AIC vs K", figures_dir / "gmm" / "AIC" / "gmm_aic_vs_k.png")
 
 
-    # Prepare labels for GMM models chosen by best BIC and best AIC
+    # Prepare labels and internal-validity scores for GMM models chosen by
+    # best BIC and best AIC.
     try:
         _bic_k = gm_bic_best.get("k")
         _bic_cov = gm_bic_best.get("covariance_type")
         if _bic_k is not None and _bic_cov is not None:
-            _gm_bic_model = GaussianMixture(n_components=int(_bic_k), covariance_type=_bic_cov, random_state=42, n_init=5)
+            _gm_bic_model = GaussianMixture(
+                n_components=int(_bic_k),
+                covariance_type=_bic_cov,
+                random_state=42,
+                n_init=5,
+            )
             _gm_bic_model.fit(Xs)
             gmm_bic_best_labels = _gm_bic_model.predict(Xs)
+            # Internal validity scores for the BIC-selected GMM model.
+            try:
+                if len(np.unique(gmm_bic_best_labels)) > 1:
+                    gm_bic_best["sil"] = float(
+                        silhouette_score(Xs, gmm_bic_best_labels)
+                    )
+                    gm_bic_best["ch"] = float(
+                        calinski_harabasz_score(Xs, gmm_bic_best_labels)
+                    )
+                    gm_bic_best["db"] = float(
+                        davies_bouldin_score(Xs, gmm_bic_best_labels)
+                    )
+                else:
+                    gm_bic_best["sil"] = -1.0
+                    gm_bic_best["ch"] = None
+                    gm_bic_best["db"] = None
+            except Exception:
+                gm_bic_best["sil"] = None
+                gm_bic_best["ch"] = None
+                gm_bic_best["db"] = None
         else:
             gmm_bic_best_labels = np.full(len(Xs), -1)
+            gm_bic_best["sil"] = None
+            gm_bic_best["ch"] = None
+            gm_bic_best["db"] = None
     except Exception:
         gmm_bic_best_labels = np.full(len(Xs), -1)
+        gm_bic_best["sil"] = None
+        gm_bic_best["ch"] = None
+        gm_bic_best["db"] = None
 
     # LDA loadings based on GMM best-by-BIC clusters
     try:
@@ -1107,13 +1163,44 @@ def main():
         _aic_k = gm_aic_best.get("k")
         _aic_cov = gm_aic_best.get("covariance_type")
         if _aic_k is not None and _aic_cov is not None:
-            _gm_aic_model = GaussianMixture(n_components=int(_aic_k), covariance_type=_aic_cov, random_state=42, n_init=5)
+            _gm_aic_model = GaussianMixture(
+                n_components=int(_aic_k),
+                covariance_type=_aic_cov,
+                random_state=42,
+                n_init=5,
+            )
             _gm_aic_model.fit(Xs)
             gmm_aic_best_labels = _gm_aic_model.predict(Xs)
+            # Internal validity scores for the AIC-selected GMM model.
+            try:
+                if len(np.unique(gmm_aic_best_labels)) > 1:
+                    gm_aic_best["sil"] = float(
+                        silhouette_score(Xs, gmm_aic_best_labels)
+                    )
+                    gm_aic_best["ch"] = float(
+                        calinski_harabasz_score(Xs, gmm_aic_best_labels)
+                    )
+                    gm_aic_best["db"] = float(
+                        davies_bouldin_score(Xs, gmm_aic_best_labels)
+                    )
+                else:
+                    gm_aic_best["sil"] = -1.0
+                    gm_aic_best["ch"] = None
+                    gm_aic_best["db"] = None
+            except Exception:
+                gm_aic_best["sil"] = None
+                gm_aic_best["ch"] = None
+                gm_aic_best["db"] = None
         else:
             gmm_aic_best_labels = np.full(len(Xs), -1)
+            gm_aic_best["sil"] = None
+            gm_aic_best["ch"] = None
+            gm_aic_best["db"] = None
     except Exception:
         gmm_aic_best_labels = np.full(len(Xs), -1)
+        gm_aic_best["sil"] = None
+        gm_aic_best["ch"] = None
+        gm_aic_best["db"] = None
 
     # Determine best overall clustering by silhouette across algorithms
     best_overall_algo = None
