@@ -294,14 +294,13 @@ def plot_anova_subjects(anova_df: pd.DataFrame) -> None:
 
     - Numeric ANOVA (BIC/AIC) is shown once, aggregated across templates and
       embedding models.
-    - Narrative ANOVA is shown by template, with separate panels for each
-      embedding model.
+    - Narrative ANOVA is shown separately for each template and embedding
+      model.
     """
 
     plot_anova_subjects_numeric(anova_df)
     plot_anova_subjects_numeric_by_outcome(anova_df)
-    plot_anova_subjects_narrative(anova_df)
-    plot_anova_subjects_narrative_by_outcome(anova_df)
+    plot_anova_subjects_narrative_per_template_model(anova_df)
 
 
 def plot_anova_subjects_numeric(anova_df: pd.DataFrame) -> None:
@@ -353,93 +352,6 @@ def plot_anova_subjects_numeric(anova_df: pd.DataFrame) -> None:
     plt.close(fig)
 
     print(f"Saved numeric ANOVA subjects eta-squared plot to {out_path}")
-
-
-def plot_anova_subjects_narrative(anova_df: pd.DataFrame) -> None:
-    """Plot mean eta-squared for subject marks for narrative clusters by template.
-
-    This shows, for each template and embedding model, how much variance in
-    subject marks is explained by the narrative-based clustering.
-    """
-
-    try:
-        import matplotlib.pyplot as plt
-    except ImportError as exc:
-        raise SystemExit(
-            "matplotlib is required for plotting. Install it with: pip install matplotlib"
-        ) from exc
-
-    base_dir = Path(__file__).resolve().parent
-    figures_dir = base_dir / "figures"
-    figures_dir.mkdir(parents=True, exist_ok=True)
-
-    subject_outcomes = {"S1", "S2", "S3", "S5", "S6"}
-
-    sub = anova_df[anova_df["outcome"].isin(subject_outcomes)]
-    sub = sub[sub["cluster_label"] == "narrative_best_label"]
-    if sub.empty:
-        return
-
-    grouped = (
-        sub.groupby(["template", "embedding_id"], as_index=False)["eta_squared"]
-        .mean()
-    )
-
-    n_emb = len(EMBEDDING_IDS)
-    fig, axes = plt.subplots(1, n_emb, figsize=(5 * n_emb, 5), sharey=True)
-    if n_emb == 1:
-        axes = [axes]
-
-    handles = []
-    labels = []
-
-    for ax, embedding_id in zip(axes, EMBEDDING_IDS):
-        emb_sub = grouped[grouped["embedding_id"] == embedding_id]
-        if emb_sub.empty:
-            ax.set_visible(False)
-            continue
-
-        # Ensure templates appear in A/B/C order even if some are missing.
-        emb_pivot = (
-            emb_sub.set_index("template")["eta_squared"].reindex(TEMPLATES)
-        )
-
-        x = list(range(len(TEMPLATES)))
-        values = emb_pivot.values
-        bars = ax.bar(x, values, width=0.5, label="narrative_best_label")
-
-        ax.set_xticks(x)
-        ax.set_xticklabels(TEMPLATES)
-        ax.set_xlabel("Template")
-        ax.set_title(embedding_id)
-        ax.grid(True, axis="y", alpha=0.2)
-
-        if not handles:
-            handles.append(bars)
-            labels.append("narrative_best_label")
-
-    if isinstance(axes, list) and axes:
-        axes[0].set_ylabel("Mean eta-squared (subjects S1, S2, S3, S5, S6)")
-
-    if handles and labels:
-        fig.legend(
-            handles,
-            labels,
-            loc="lower center",
-            bbox_to_anchor=(0.5, 0.0),
-            ncol=len(labels),
-        )
-
-    fig.suptitle(
-        "ANOVA effect size (subjects): narrative clusters by template", y=0.96
-    )
-    fig.tight_layout(rect=(0.0, 0.08, 1.0, 0.94))
-
-    out_path = figures_dir / "anova_eta_subjects_narrative_by_template.png"
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
-
-    print(f"Saved narrative ANOVA subjects eta-squared plot to {out_path}")
 
 
 def plot_anova_subjects_numeric_by_outcome(anova_df: pd.DataFrame) -> None:
@@ -521,14 +433,7 @@ def plot_anova_subjects_numeric_by_outcome(anova_df: pd.DataFrame) -> None:
     print(f"Saved numeric ANOVA eta-squared by subject plot to {out_path}")
 
 
-def plot_anova_subjects_narrative_by_outcome(anova_df: pd.DataFrame) -> None:
-    """Plot eta-squared per subject for narrative clusters, by template.
-
-    - X-axis: subject (S1, S2, S3, S5, S6).
-    - Bars: templates A, B, C.
-    - Separate subplot for each embedding model.
-    """
-
+def plot_anova_subjects_narrative_per_template_model(anova_df: pd.DataFrame) -> None:
     try:
         import matplotlib.pyplot as plt
     except ImportError as exc:
@@ -547,78 +452,47 @@ def plot_anova_subjects_narrative_by_outcome(anova_df: pd.DataFrame) -> None:
     if sub.empty:
         return
 
-    grouped = (
-        sub.groupby(["embedding_id", "template", "outcome"], as_index=False)[
-            "eta_squared"
-        ]
-        .mean()
-    )
-
-    n_emb = len(EMBEDDING_IDS)
-    fig, axes = plt.subplots(1, n_emb, figsize=(6 * n_emb, 5), sharey=True)
-    if n_emb == 1:
-        axes = [axes]
-
-    for ax, embedding_id in zip(axes, EMBEDDING_IDS):
-        emb_sub = grouped[grouped["embedding_id"] == embedding_id]
-        if emb_sub.empty:
-            ax.set_visible(False)
-            continue
-
-        # Pivot so that rows are outcomes, columns are templates.
-        pivot = emb_sub.pivot(
-            index="outcome", columns="template", values="eta_squared"
-        ).reindex(subject_outcomes)
-
-        x = range(len(subject_outcomes))
-        width = 0.25
-        offsets = {
-            "A": -width,
-            "B": 0.0,
-            "C": width,
-        }
-
-        handles = []
-        labels = []
-
-        for template in TEMPLATES:
-            if template not in pivot.columns:
+    for template in TEMPLATES:
+        for embedding_id in EMBEDDING_IDS:
+            te_sub = sub[
+                (sub["template"] == template)
+                & (sub["embedding_id"] == embedding_id)
+            ]
+            if te_sub.empty:
                 continue
-            values = pivot[template].values
-            bars = ax.bar(
-                [xi + offsets[template] for xi in x],
-                values,
-                width=width,
-                label=f"Template {template}",
+
+            grouped = (
+                te_sub.groupby("outcome", as_index=False)["eta_squared"].mean()
             )
-            handles.append(bars)
-            labels.append(f"Template {template}")
+            grouped = grouped.set_index("outcome").reindex(subject_outcomes)
 
-        ax.set_xticks(list(x))
-        ax.set_xticklabels(subject_outcomes)
-        ax.set_xlabel("Subject")
-        ax.set_title(embedding_id)
-        ax.grid(True, axis="y", alpha=0.2)
+            fig, ax = plt.subplots(figsize=(6, 5))
 
-        if handles and labels:
-            ax.legend(handles, labels)
+            x = range(len(subject_outcomes))
+            values = grouped["eta_squared"].values
 
-    if isinstance(axes, list) and axes:
-        axes[0].set_ylabel("Eta-squared (per subject)")
+            ax.bar(x, values, width=0.6)
+            ax.set_xticks(list(x))
+            ax.set_xticklabels(subject_outcomes)
+            ax.set_ylabel("Eta-squared (per subject)")
+            ax.set_xlabel("Subject")
+            ax.set_title(
+                f"ANOVA eta-squared: Template {template}, {embedding_id}"
+            )
+            ax.grid(True, axis="y", alpha=0.2)
 
-    fig.suptitle(
-        "ANOVA eta-squared by subject: narrative clusters by template", y=0.96
-    )
-    fig.tight_layout(rect=(0.0, 0.04, 1.0, 0.95))
+            out_path = (
+                figures_dir
+                / f"anova_eta_subjects_narrative_template_{template}_{embedding_id}.png"
+            )
+            fig.tight_layout()
+            fig.savefig(out_path, dpi=200)
+            plt.close(fig)
 
-    out_path = figures_dir / "anova_eta_subjects_narrative_by_outcome_and_template.png"
-    fig.savefig(out_path, dpi=200)
-    plt.close(fig)
-
-    print(
-        "Saved narrative ANOVA eta-squared by subject and template plot to "
-        f"{out_path}"
-    )
+            print(
+                "Saved narrative ANOVA eta-squared by subject for template "
+                f"{template}, {embedding_id} to {out_path}"
+            )
 
 
 def main() -> None:
