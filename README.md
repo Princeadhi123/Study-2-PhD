@@ -57,11 +57,13 @@ Core Python packages:
 
 - `numpy`
 - `pandas`
+- `scipy`
 - `scikit-learn`
 - `matplotlib`
 - `seaborn`
 - `umap-learn` *(optional, used only if installed for UMAP plots)*
 - `openpyxl` *(or another Excel engine; used by `pandas.read_excel`)*
+- `sentence-transformers` *(for narrative text embeddings such as all-mpnet-base-v2 and all-MiniLM-L6-v2)*
 
 ### 2.1. Install with `pip`
 
@@ -71,7 +73,7 @@ From the `Study-2` directory, create an environment and install dependencies, fo
 python -m venv .venv
 .venv\Scripts\activate  # on Windows
 
-pip install numpy pandas scikit-learn matplotlib seaborn umap-learn openpyxl
+pip install numpy pandas scipy scikit-learn matplotlib seaborn umap-learn openpyxl sentence-transformers
 ```
 
 If you do not need UMAP plots, you can omit `umap-learn`.
@@ -339,11 +341,11 @@ These help interpret which subject areas distinguish clusters.
 ## 7. Typical workflow
 
 1. **Prepare itemwise response data** in the required long format and place it under `data/` (or another folder).
-2. **Run the clustering pipeline**:
+2. **Run the numeric clustering pipeline**:
    - `python cluster_knowledge_trajectories.py`  
      or  
    - `python cluster_knowledge_trajectories.py path\to\your_itemwise.csv`
-3. Inspect:
+3. **Inspect numeric outputs**:
    - `diagnostics/cluster input features/derived_features.csv`
    - `diagnostics/student cluster labels/student_clusters.csv`
    - `diagnostics/cluster validity/*.csv`
@@ -352,7 +354,19 @@ These help interpret which subject areas distinguish clusters.
    - Ensure `diagnostics/student cluster labels/student_clusters.csv` is present.  
    - Run `python subjectwise_by_cluster.py` (or provide your own marks file path).
    - Inspect subject-level heatmaps and radar plots.
-5. Use the combination of numeric diagnostics and figures to interpret and select meaningful student knowledge trajectory clusters.
+5. **(Optional) Run the narrative-embedding pipeline** (requires outputs from steps 2–4):
+   - `cd narrative_embedding_clustering`
+   - `python 01_build_narratives.py`
+   - `python 02_compute_embeddings.py`
+   - `python 03_cluster_embeddings.py`
+   - `python 04_compare_with_gmm_bic.py`
+   - `python 05_visualize_embeddings.py`  
+     or run all templates and models with:  
+   - `python 06_run_all_models.py`
+6. **(Optional) Summarise cross-template metrics and subject ANOVA**:
+   - From `narrative_embedding_clustering`: `python 07_plot_metrics.py`
+   - Inspect combined figures in `narrative_embedding_clustering/figures/`.
+7. **Interpretation**: Use the combination of numeric diagnostics, subject-wise plots, and narrative-embedding results to select and interpret meaningful student knowledge trajectory clusters.
 
 ---
 
@@ -376,3 +390,94 @@ You can customise the analysis by editing the Python scripts:
   By default, `sex` is used if available. You can modify `compute_external_validity` and the call sites to use different true labels (e.g. grade bands, school type).
 
 Whenever you change the scripts, re-run the pipelines to regenerate diagnostics and figures.
+
+## 9. Narrative-embedding clustering (`narrative_embedding_clustering/`)
+
+### 9.1. Aim
+
+- **Goal**: Use encoder-only transformer models to embed per-student narratives, cluster them with GMM+BIC, and compare these narrative clusters to the numeric GMM (`gmm_bic_best_label`, `gmm_aic_best_label`) and to subject marks.
+- **Inputs reused from the main pipeline**:
+  - `diagnostics/cluster input features/derived_features.csv`
+  - `diagnostics/student cluster labels/student_clusters.csv`
+  - `diagnostics/cluster input features/marks_with_clusters.csv` (for Template C narratives and subject-wise ANOVA).
+
+### 9.2. Directory and configuration
+
+- **`narrative_embedding_clustering/architecture flow.md`** – Mermaid diagram summarising the numeric baseline, narrative pipeline, evaluation, and visualisation stages.
+- **`narrative_embedding_clustering/config.py`**:
+  - `DERIVED_FEATURES_PATH`, `STUDENT_CLUSTERS_PATH`, `MARKS_WITH_CLUSTERS_PATH` – locations of numeric features, numeric cluster labels, and marks merged with clusters.
+  - `K_RANGE = range(2, 11)` – range of K values used for narrative GMM clustering.
+  - `EMBEDDING_MODEL_NAME` (default `all-mpnet-base-v2`) and `NARRATIVE_TEMPLATE_VERSION` (`"A"`, `"B"`, `"C"`), both overrideable via environment variables.
+  - `OUTPUT_DIR = outputs/template_<T>/<embedding_id>` where `<T>` is the template (A/B/C) and `<embedding_id>` is a sanitised model name (e.g. `all_mpnet_base_v2`, `all_MiniLM_L6_v2`).
+
+### 9.3. Scripts
+
+- **`01_build_narratives.py`**  
+  Reads `derived_features.csv` (and `marks_with_clusters.csv` for Template C) and builds one text narrative per student:
+  - Template **A**: rich paragraph with accuracy, speed, timing variability, streaks, and consecutive-correct rate.
+  - Template **B**: compact semi-structured summary with categorical descriptors.
+  - Template **C**: Template A plus embedded subject marks / missingness where available.  
+  Writes `narratives.csv` into `OUTPUT_DIR`.
+
+- **`02_compute_embeddings.py`**  
+  Loads `narratives.csv`, encodes the `narrative_text` field using `sentence-transformers` (e.g. `all-mpnet-base-v2`, `all-MiniLM-L6-v2`), and writes:
+  - `embeddings.npy` – dense embedding matrix.
+  - `embeddings_index.csv` – mapping from `IDCode` to row index in the embedding matrix.
+
+- **`03_cluster_embeddings.py`**  
+  Fits Gaussian Mixture Models over `K_RANGE` and covariance types (`full`, `diag`, `tied`, `spherical`), selects the best model by BIC, and writes:
+  - `model_results_narrative.csv` – BIC values across K × covariance type.
+  - `narrative_clusters.csv` – `IDCode`, `narrative_gmm_bic_best_label`, and `narrative_best_label`.
+
+- **`04_compare_with_gmm_bic.py`**  
+  Merges narrative and numeric cluster labels (and marks, if available), then:
+  - Computes Adjusted Rand Index for narrative vs numeric GMM clusters (both BIC- and AIC-based) and saves overlap tables:
+    - `gmm_bic_vs_narrative_overlap.csv`
+    - `gmm_aic_vs_narrative_overlap.csv`
+  - If embeddings are available, computes internal indices in embedding space (silhouette with cosine distance, Calinski–Harabasz, Davies–Bouldin) for each label set and stores them in `gmm_vs_narrative_metrics*.csv`.
+  - If `marks_with_clusters.csv` exists, summarises mean subject marks by cluster and runs one-way ANOVAs with eta-squared effect sizes:
+    - Numeric GMM summaries: `marks_by_gmm_bic.csv`.
+    - Narrative summaries: `marks_by_narrative.csv`.
+    - Narrative ANOVA per template/model: `marks_anova_by_cluster*.csv` in each `OUTPUT_DIR`.
+    - Global numeric ANOVA (BIC/AIC) across templates: `outputs/numeric_marks_anova_by_cluster.csv`.
+  - Selects central example students in embedding space for each narrative cluster and writes `example_profiles.csv` (one row per selected student including `IDCode`, numeric and narrative labels, and `narrative_text`).
+
+- **`05_visualize_embeddings.py`**  
+  Produces per-template/model plots under `OUTPUT_DIR/figures/`, including:
+  - BIC vs K curves for narrative GMM (`narrative_gmm_bic_vs_k*.png`).
+  - 2D PCA, t-SNE, UMAP (if installed), and LDA projections of embeddings coloured by narrative and numeric clusters.
+
+- **`06_run_all_models.py`**  
+  Convenience driver that iterates over all templates (`"A"`, `"B"`, `"C"`) and embedding models (`"all-mpnet-base-v2"`, `"all-MiniLM-L6-v2"`), running scripts 01–05 for each combination.
+
+- **`07_plot_metrics.py`**  
+  Aggregates metric and ANOVA CSVs across all runs and writes combined summary figures under `narrative_embedding_clustering/figures/`, including:
+  - Internal metrics by template and embedding model (silhouette, Calinski–Harabasz, Davies–Bouldin).
+  - Adjusted Rand Index between numeric and narrative clusters.
+  - Subject-level ANOVA effect sizes (numeric vs narrative clusters).
+
+### 9.4. Running the narrative pipeline
+
+From the project root:
+
+```bash
+cd narrative_embedding_clustering
+
+# Single template/model (using defaults from config.py or environment variables)
+python 01_build_narratives.py
+python 02_compute_embeddings.py
+python 03_cluster_embeddings.py
+python 04_compare_with_gmm_bic.py
+python 05_visualize_embeddings.py
+
+# Or run all templates and models
+python 06_run_all_models.py
+
+# Optional: aggregate metrics and ANOVA across all runs
+python 07_plot_metrics.py
+```
+
+Key outputs live under:
+
+- `narrative_embedding_clustering/outputs/template_<T>/<embedding_id>/` – per-template/model CSVs and figures.
+- `narrative_embedding_clustering/figures/` – cross-template summary plots from `07_plot_metrics.py`.
