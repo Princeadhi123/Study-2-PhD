@@ -1,0 +1,41 @@
+Template A – MiniLM cluster descriptions (from ChatGPT)
+
+Cluster 0 — “Reliable high-performers”
+Count: 5 · Typical: high accuracy (≈0.84), moderate speed (≈17.5s), moderate variability, very long correct streaks and short incorrect streaks.
+Examples: vabe169, saca329, jide437, caro445.
+
+Cluster 1 — “Struggling & slow / inconsistent”
+Count: 5 · Typical: low accuracy (≈0.50), slow (≈25s), high variability, short correct / long incorrect streaks.
+Examples: fafe171, vexo008, doza768, muvo194.
+
+Cluster 2 — “Moderate accuracy, slow & variable”
+Count: 5 · Typical: medium accuracy (≈0.71), slow (≈23s), high timing variability, occasional correct streaks but some long incorrect runs.
+Examples: puca767, lusi512, guzo911, zywy107.
+
+Cluster 3 — “Fast but low accuracy (likely guessing/disengaged)”
+Count: 5 · Typical: very low accuracy (≈0.32), fast responses (≈12s), low timing variance, very long incorrect streaks.
+Examples: bihi184, bacy598, nuhi137, kojo378.
+
+Cluster 4 — “Fast & accurate (confident experts)”
+Count: 5 · Typical: high accuracy (≈0.85), fast (≈11.8s), stable timing, long correct streaks and short incorrect streaks.
+Examples: buby593, lany944, kyqu130, posy537.
+
+Cluster 5 — “Low accuracy, moderate speed, unstable”
+Count: 5 · Typical: low/near-mid accuracy (≈0.50), moderate speed (~18s), high variability, and relatively long incorrect streaks.
+Examples: kyzy131, huve181, biku776, cupe992.
+
+Cluster 6 — “Solid middle group”
+Count: 5 · Typical: medium–high accuracy (≈0.73), moderate speed (~16.4s), moderate variability, occasional good streaks.
+Examples: katu927, loby351, mybu425, tiro932.
+
+Cluster 7 — “Accurate but careful/slow solvers”
+Count: 5 · Typical: high accuracy (≈0.84), slow (≈21.8s), stable timing, long correct streaks — they take time but get it right.
+Examples: reqy562, ciky680, feji918, ruhu758.
+
+Cluster 8 — “Efficient moderates — fast & decent accuracy”
+Count: 5 · Typical: medium accuracy (≈0.72), fast (≈12.2s), stable timing, moderate streaks — fairly efficient with some errors.
+Examples: punu537, tezy480, weru214, dasy955.
+
+Cluster 9 — “Consistent average performers”
+Count: 5 · Typical: medium accuracy (≈0.75), moderate speed (~16.5s), stable timing, moderate correct streaks.
+Examples: hime464, hadi890, togu404, vyva107.
