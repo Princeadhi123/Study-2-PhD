@@ -105,6 +105,10 @@ def main() -> None:
     emb_path = OUTPUT_DIR / emb_filename
     emb_index_path = OUTPUT_DIR / emb_index_filename
 
+    # These will be reused later to select central example profiles.
+    X_all: np.ndarray | None = None
+    emb_base: pd.DataFrame | None = None
+
     if emb_path.exists() and emb_index_path.exists():
         try:
             X_all = np.load(emb_path)
@@ -192,7 +196,8 @@ def main() -> None:
         except Exception:
             # If anything goes wrong with embedding-based metrics, skip them silently
             # so that ARI results are still produced.
-            pass
+            X_all = None
+            emb_base = None
 
     metrics_df = pd.DataFrame(metrics_rows)
     ari_filename = make_versioned_filename("gmm_vs_narrative_metrics.csv")
@@ -320,12 +325,43 @@ def main() -> None:
                     numeric_anova_path = OUTPUT_ROOT / "numeric_marks_anova_by_cluster.csv"
                     numeric_df.to_csv(numeric_anova_path, index=False)
 
-    examples = []
-    for _, group in base.groupby("narrative_best_label"):
-        # Take up to 5 example students per narrative cluster; the
-        # 'narrative_best_label' column is already present in 'base'.
-        sample = group.head(5).copy()
-        examples.append(sample)
+    # --- Example profiles: choose central students per narrative cluster.
+    # If we have embeddings and an alignment between embeddings and labels
+    # (emb_base), pick the most central students in embedding space for each
+    # narrative cluster. Otherwise, fall back to taking the first 5.
+    examples: list[pd.DataFrame] = []
+
+    if X_all is not None and emb_base is not None and not emb_base.empty:
+        # Map base by ID for easy lookup in the desired order.
+        base_by_id = base.set_index("IDCode")
+
+        for label_val, group in emb_base.groupby("narrative_best_label"):
+            # Embedding indices for this narrative cluster.
+            idx_array = group["index"].to_numpy(dtype=int)
+            if idx_array.size == 0:
+                continue
+            X_group = X_all[idx_array]
+            # Cluster centroid in embedding space.
+            center = X_group.mean(axis=0)
+            # Euclidean distance to the centroid.
+            dists = np.linalg.norm(X_group - center, axis=1)
+            order = np.argsort(dists)[:5]
+            central_ids = group.iloc[order]["IDCode"].tolist()
+
+            # Recover the corresponding rows (including narrative_text) in
+            # the order of increasing distance to the centroid.
+            try:
+                sample = base_by_id.loc[central_ids].reset_index()
+            except Exception:
+                # If anything goes wrong, skip this cluster.
+                continue
+
+            examples.append(sample)
+    else:
+        # Fallback: simple head(5) per narrative cluster as before.
+        for _, group in base.groupby("narrative_best_label"):
+            sample = group.head(5).copy()
+            examples.append(sample)
 
     if examples:
         examples_df = pd.concat(examples, ignore_index=True)
