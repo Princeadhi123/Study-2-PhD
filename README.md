@@ -1,17 +1,17 @@
-# Study 2 – Student Knowledge Trajectories and Cluster Diagnostics
+# Study 2 – Narrative Embeddings and Student Knowledge Trajectories
 
-This repository contains code to:
+This repository now centres on a transformer-based sentence-embedding narrative pipeline built on top of a numeric clustering baseline. It uses encoder-only sentence-transformer models (e.g. `all-mpnet-base-v2`, `all-MiniLM-L6-v2`) to embed per-student narratives; these are not full generative Large Language Models (LLMs), but specialised embedding models. It contains code to:
 
 - Derive per-student behavioural features from item-level response data.
 - Run multiple clustering algorithms over these features.
-- Compare and select clustering solutions using internal and external validity metrics.
-- Generate rich visual diagnostics (PCA/LDA loadings, 2D embeddings, cluster profiles, etc.).
-- Link cluster memberships to subject-wise marks and visualise subject profiles by cluster.
+- Build per-student narratives from numeric features (Templates A/B/C) and embed them with encoder-only transformers.
+- Cluster narrative embeddings with GMM+BIC and compare narrative clusters to numeric GMM clusters.
+- Link both numeric and narrative cluster memberships to subject-wise marks and visualise subject profiles by cluster.
 
-The analysis is organised around two main scripts:
+The analysis is therefore organised in two layers:
 
-- `cluster_knowledge_trajectories.py`
-- `subjectwise_by_cluster.py`
+- **Narrative-embedding pipeline (main)**: `narrative_embedding_clustering/` (scripts `01_build_narratives.py`–`07_plot_metrics.py`).
+- **Numeric baseline pipeline**: `cluster_knowledge_trajectories.py` and `subjectwise_by_cluster.py`.
 
 ---
 
@@ -19,23 +19,26 @@ The analysis is organised around two main scripts:
 
 At the top level of `Study-2` you will typically have:
 
+- **`narrative_embedding_clustering/`**  
+  Main subproject. Builds per-student narratives from numeric features, computes transformer embeddings, runs narrative GMM+BIC clustering, compares narrative vs numeric clusters, and generates cross-template metrics and ANOVA plots (see Section 9).
+
 - **`cluster_knowledge_trajectories.py`**  
-  Main pipeline. Reads an itemwise CSV, computes per-student features, runs clustering, evaluates models, and writes diagnostics + figures.
+  Numeric baseline pipeline. Reads an itemwise CSV, computes per-student features, runs clustering, evaluates models, and writes diagnostics + figures that feed into the narrative pipeline.
 
 - **`subjectwise_by_cluster.py`**  
-  Post-hoc analysis. Merges student cluster labels with an Excel file of subject-wise marks and produces cluster-by-subject profiles.
+  Post-hoc numeric analysis. Merges student cluster labels with an Excel file of subject-wise marks and produces cluster-by-subject profiles; also feeds marks into Template C narratives and narrative ANOVA.
 
 - **`data/`**  
   - `DigiArvi_25_itemwise.csv` – default input for `cluster_knowledge_trajectories.py` (item-level responses).  
   - `EQTd_DAi_25_cleaned 3_1 for Prince.xlsx` – default input for `subjectwise_by_cluster.py` (subject marks).
 
-- **`diagnostics/`** *(created by the scripts)*  
+- **`diagnostics/`** *(created by the numeric baseline + subjectwise scripts; reused by the narrative pipeline)*  
   - `cluster input features/` – derived per-student features and merged marks+clusters.  
   - `student cluster labels/` – cluster labels per student for each clustering method.  
   - `model results/` – numeric diagnostics for clustering model sweeps (e.g. silhouette vs K, GMM BIC/AIC grid, DBSCAN sweeps).  
   - `cluster validity/` – internal and external cluster validity metrics.
 
-- **`figures/`** *(created by the scripts)*  
+- **`figures/`** *(created by the numeric baseline + subjectwise scripts; reused by the narrative pipeline)*  
   Subfolders for each algorithm and analysis, for example:  
   - `kmeans/`, `agglomerative/`, `birch/`, `gmm/`, `dbscan/`  
   - `gmm/BIC/`, `gmm/AIC/`  
