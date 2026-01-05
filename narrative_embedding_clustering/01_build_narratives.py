@@ -6,7 +6,6 @@ import pandas as pd
 
 from config import (
     DERIVED_FEATURES_PATH,
-    MARKS_WITH_CLUSTERS_PATH,
     NARRATIVE_TEMPLATE_VERSION,
     OUTPUT_DIR,
     make_versioned_filename,
@@ -122,22 +121,6 @@ def build_narratives(df: pd.DataFrame, marks_df: pd.DataFrame | None = None) -> 
                 f"Consecutive correct answers are {cc_cat} (consecutive-correct rate {cc:.2f})."
             )
 
-            if template == "C":
-                mark_values: list[str] = []
-                for col in ("S1", "S2", "S3", "S5", "S6"):
-                    if col in row and not pd.isna(row[col]):
-                        mark_values.append(f"{col}={int(row[col])}")
-                missing_sentence = ""
-                if "Missing_total" in row and not pd.isna(row["Missing_total"]):
-                    missing_sentence = f"overall missingness {float(row['Missing_total']):.2f}%"
-                if mark_values or missing_sentence:
-                    details: list[str] = []
-                    if mark_values:
-                        details.append("subject marks: " + ", ".join(mark_values))
-                    if missing_sentence:
-                        details.append(missing_sentence)
-                    parts.append("They have " + " and ".join(details) + ".")
-
             narrative = " ".join(parts)
         narratives.append(narrative)
 
@@ -149,10 +132,7 @@ def build_narratives(df: pd.DataFrame, marks_df: pd.DataFrame | None = None) -> 
 def main() -> None:
     df = pd.read_csv(DERIVED_FEATURES_PATH)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    marks_df: pd.DataFrame | None = None
-    if NARRATIVE_TEMPLATE_VERSION.upper() == "C" and MARKS_WITH_CLUSTERS_PATH.exists():
-        marks_df = pd.read_csv(MARKS_WITH_CLUSTERS_PATH)
-    narratives = build_narratives(df, marks_df=marks_df)
+    narratives = build_narratives(df)
     out_filename = make_versioned_filename("narratives.csv")
     out_path = OUTPUT_DIR / out_filename
     narratives.to_csv(out_path, index=False)

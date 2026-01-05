@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 
 
-TEMPLATES = ("A", "B", "C")
+TEMPLATES = ("A", "B")
 MODELS = ("all-mpnet-base-v2", "all-MiniLM-L6-v2")
 SCRIPTS = (
     "01_build_narratives.py",
