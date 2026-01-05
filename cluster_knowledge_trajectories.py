@@ -165,17 +165,21 @@ def scale_features(feats: pd.DataFrame, feature_cols: list) -> Tuple[np.ndarray,
 
 
 def kmeans_sweep(X: np.ndarray, k_range=range(2, 11)) -> Tuple[np.ndarray, Dict]:
-    best = {"k": None, "sil": -1.0}
+    best = {"k": None, "sil": -1.0, "ch": None, "db": None}
     best_labels = None
     for k in k_range:
         km = KMeans(n_clusters=k, random_state=42, n_init=10)
         labels = km.fit_predict(X)
         try:
             sil = silhouette_score(X, labels)
+            ch = calinski_harabasz_score(X, labels)
+            db = davies_bouldin_score(X, labels)
         except Exception:
             sil = -1.0
+            ch = None
+            db = None
         if sil > best["sil"]:
-            best = {"k": k, "sil": float(sil)}
+            best = {"k": k, "sil": float(sil), "ch": float(ch) if ch is not None else None, "db": float(db) if db is not None else None}
             best_labels = labels
     return best_labels, best
 
@@ -341,6 +345,12 @@ def analyze_pca_loadings(X: np.ndarray, feature_names: list, out_dir: Path):
     
     return pca
 def analyze_lda_loadings(X: np.ndarray, labels: np.ndarray, feature_names: list, out_dir: Path):
+    """
+    Computes and plots LDA loadings.
+    NOTE: LDA is a supervised technique. It finds axes that maximize separation between the PROVIDED labels.
+    Therefore, high separation in LDA plots is expected and DOES NOT validate the existence of the clusters.
+    It is useful only for interpreting which features drive the separation between the groups.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
     labels_arr = np.asarray(labels)
     mask = labels_arr >= 0
@@ -803,17 +813,21 @@ def dbscan_k_distance_plot(
 
 
 def agglomerative_sweep(X: np.ndarray, k_range=range(2, 11)) -> Tuple[np.ndarray, Dict]:
-    best = {"k": None, "sil": -1.0}
+    best = {"k": None, "sil": -1.0, "ch": None, "db": None}
     best_labels = None
     for k in k_range:
         agg = AgglomerativeClustering(n_clusters=k, linkage="ward")
         labels = agg.fit_predict(X)
         try:
             sil = silhouette_score(X, labels)
+            ch = calinski_harabasz_score(X, labels)
+            db = davies_bouldin_score(X, labels)
         except Exception:
             sil = -1.0
+            ch = None
+            db = None
         if sil > best["sil"]:
-            best = {"k": k, "sil": float(sil)}
+            best = {"k": k, "sil": float(sil), "ch": float(ch) if ch is not None else None, "db": float(db) if db is not None else None}
             best_labels = labels
     return best_labels, best
 
@@ -849,7 +863,7 @@ def birch_sweep(
     thresholds=(0.3, 0.5, 0.7, 0.9),
     branching_factor: int = 50,
 ) -> Tuple[np.ndarray, Dict]:
-    best = {"k": None, "threshold": None, "branching_factor": int(branching_factor), "sil": -1.0}
+    best = {"k": None, "threshold": None, "branching_factor": int(branching_factor), "sil": -1.0, "ch": None, "db": None}
     best_labels = None
     for k in k_range:
         for thr in thresholds:
@@ -858,16 +872,24 @@ def birch_sweep(
                 labels = br.fit_predict(X)
                 if len(np.unique(labels)) <= 1:
                     sil = -1.0
+                    ch = None
+                    db = None
                 else:
                     sil = silhouette_score(X, labels)
+                    ch = calinski_harabasz_score(X, labels)
+                    db = davies_bouldin_score(X, labels)
             except Exception:
                 sil = -1.0
+                ch = None
+                db = None
             if sil > best["sil"]:
                 best = {
                     "k": int(k),
                     "threshold": float(thr),
                     "branching_factor": int(branching_factor),
                     "sil": float(sil),
+                    "ch": float(ch) if ch is not None else None,
+                    "db": float(db) if db is not None else None,
                 }
                 best_labels = labels
     return best_labels, best
@@ -982,14 +1004,20 @@ def write_report(report_path: Path, summary: Dict):
     best_overall = summary.get("best_overall", {})
     lines.append("KMeans\n")
     lines.append(f"  best_k: {km.get('k')}\n")
-    lines.append(f"  silhouette: {km.get('sil')}\n\n")
+    lines.append(f"  silhouette: {km.get('sil')}\n")
+    lines.append(f"  calinski_harabasz: {km.get('ch')}\n")
+    lines.append(f"  davies_bouldin: {km.get('db')}\n\n")
     lines.append("Agglomerative\n")
     lines.append(f"  best_k: {ag.get('k')}\n")
-    lines.append(f"  silhouette: {ag.get('sil')}\n\n")
+    lines.append(f"  silhouette: {ag.get('sil')}\n")
+    lines.append(f"  calinski_harabasz: {ag.get('ch')}\n")
+    lines.append(f"  davies_bouldin: {ag.get('db')}\n\n")
     lines.append("Birch\n")
     lines.append(f"  best_k: {br.get('k')}\n")
-    lines.append(f"  silhouette: {br.get('sil')}\n\n")
-    lines.append("GMM\n")
+    lines.append(f"  silhouette: {br.get('sil')}\n")
+    lines.append(f"  calinski_harabasz: {br.get('ch')}\n")
+    lines.append(f"  davies_bouldin: {br.get('db')}\n\n")
+    lines.append("GMM (Silhouette Best)\n")
     lines.append(f"  best_k: {gm.get('k')}\n")
     lines.append(f"  covariance_type: {gm.get('covariance_type')}\n")
     lines.append(f"  silhouette: {gm.get('sil')}\n\n")
@@ -1292,7 +1320,7 @@ def main():
             lda_scatter(
                 Xs,
                 gmm_bic_best_labels,
-                f"LDA (GMM best by BIC: k={bic_k}, cov={bic_cov})",
+                f"LDA (GMM best by BIC: k={bic_k}, cov={bic_cov})\n(Interpretation Only - Not Validation)",
                 figures_dir / "gmm" / "BIC" / "gmm_bic_best_lda.png",
             )
 
