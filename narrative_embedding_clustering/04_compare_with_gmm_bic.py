@@ -29,7 +29,7 @@ def _detect_id_col(df: pd.DataFrame) -> str:
     raise ValueError("Could not find an ID column in marks_with_clusters.csv")
 
 
-def save_cluster_keywords(df: pd.DataFrame, text_col: str, cluster_col: str, top_n: int = 4) -> None:
+def save_cluster_keywords(df: pd.DataFrame, text_col: str, cluster_col: str, top_n: int = 3) -> None:
     # Group text by cluster
     clusters = sorted(df[cluster_col].unique())
     grouped_text = [" ".join(df[df[cluster_col] == c][text_col].astype(str)) for c in clusters]
@@ -44,7 +44,9 @@ def save_cluster_keywords(df: pd.DataFrame, text_col: str, cluster_col: str, top
         "subject", "marks", "overall", "missingness",
         "values", "unknown",
         # Fluff words added by user request
-        "highly", "moderately", "occasional", "variable", "stable", "long", "short"
+        "highly", "moderately", "occasional", "variable", "stable", "long", "short",
+        # Additional fluff for Template B
+        "speed", "var"
     }
     # Union with standard English stop words
     custom_stop_words = list(ENGLISH_STOP_WORDS.union(template_stopwords))

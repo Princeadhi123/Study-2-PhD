@@ -1,6 +1,6 @@
 Cluster,Keywords
-0,"medium (0.52), moderate (0.45), speed (0.44), var (0.44)"
-1,"var (0.49), speed (0.49), rare (0.35), moderate (0.28)"
-2,"medium (0.52), moderate (0.51), speed (0.44), var (0.44)"
-3,"var (0.50), speed (0.50), slow (0.38), medium (0.33)"
-4,"low (0.57), rare (0.48), speed (0.41), var (0.41)"
+0,"medium (0.67), moderate (0.58), fast (0.37)"
+1,"rare (0.48), moderate (0.39), high (0.39)"
+2,"medium (0.66), moderate (0.66), slow (0.25)"
+3,"slow (0.54), medium (0.47), moderate (0.45)"
+4,"low (0.70), rare (0.59), fast (0.36)"
