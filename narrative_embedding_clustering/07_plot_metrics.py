@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 
-TEMPLATES = ["A", "B", "C"]
+TEMPLATES = ["A", "B"]
 EMBEDDING_IDS = ["all_MiniLM_L6_v2", "all_mpnet_base_v2"]
 
 
@@ -495,6 +495,44 @@ def plot_anova_subjects_narrative_per_template_model(anova_df: pd.DataFrame) -> 
             )
 
 
+def plot_mark_correlations() -> None:
+    try:
+        import seaborn as sns
+        import matplotlib.pyplot as plt
+    except ImportError as exc:
+        print("seaborn or matplotlib not installed, skipping correlation plot.")
+        return
+
+    base_dir = Path(__file__).resolve().parent
+    OUTPUT_DIR = base_dir / "outputs"  # Local redefinition or import if accessible, but using local is safer here
+    marks_path = base_dir.parent / "diagnostics" / "cluster input features" / "marks_with_clusters.csv"
+    
+    if not marks_path.exists():
+        print(f"Marks file not found at {marks_path}, skipping correlation plot.")
+        return
+
+    df = pd.read_csv(marks_path)
+    # Filter for Subject columns only (S1, S2, etc.)
+    subj_cols = [c for c in df.columns if c.startswith("S") and c[1:].isdigit()]
+    
+    if not subj_cols:
+        return
+
+    corr = df[subj_cols].corr()
+    
+    fig = plt.figure(figsize=(8, 6))
+    sns.heatmap(corr, annot=True, cmap="coolwarm", vmin=-1, vmax=1)
+    plt.title("Correlation Matrix of Subject Marks")
+    fig.tight_layout()
+    
+    figures_dir = base_dir / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    out_path = figures_dir / "subject_correlation_matrix.png"
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"Saved correlation matrix to {out_path}")
+
+
 def main() -> None:
     metrics = load_metrics()
     plot_internal_metrics(metrics)
@@ -502,6 +540,8 @@ def main() -> None:
 
     anova_df = load_anova_results()
     plot_anova_subjects(anova_df)
+    
+    plot_mark_correlations()
 
 
 if __name__ == "__main__":

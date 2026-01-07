@@ -1,31 +1,26 @@
 IDCode,gmm_bic_best_label,gmm_aic_best_label,narrative_best_label,narrative_text
-tuve726,0,5,0,Accuracy medium; speed slow; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-guzo911,0,0,0,Accuracy medium; speed slow; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-culu497,0,0,0,Accuracy medium; speed slow; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-maqu534,0,0,0,Accuracy medium; speed slow; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-lusi512,0,5,0,Accuracy medium; speed slow; timing highly variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-pivi588,1,2,1,Accuracy high; speed moderate; timing highly variable; correct streak long; incorrect streak short; consecutive correct frequent.
-pile112,1,2,1,Accuracy high; speed moderate; timing highly variable; correct streak long; incorrect streak short; consecutive correct frequent.
-xuvy948,1,2,1,Accuracy high; speed moderate; timing highly variable; correct streak long; incorrect streak short; consecutive correct frequent.
-kuge219,5,2,1,Accuracy high; speed moderate; timing highly variable; correct streak long; incorrect streak short; consecutive correct frequent.
-vuvy608,1,2,1,Accuracy high; speed moderate; timing highly variable; correct streak long; incorrect streak short; consecutive correct frequent.
-qefe646,4,3,2,Accuracy low; speed moderate; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-lufy687,5,8,2,Accuracy low; speed moderate; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-hoki309,4,3,2,Accuracy low; speed moderate; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-zejy480,4,3,2,Accuracy low; speed moderate; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-doxi119,4,4,2,Accuracy low; speed moderate; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-vuho146,4,5,3,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-soru820,4,3,3,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-pyzo535,2,1,3,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-woza563,4,3,3,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-mesi806,5,3,3,Accuracy low; speed slow; timing highly variable; correct streak short; incorrect streak long; consecutive correct rare.
-kewi488,0,9,4,Accuracy medium; speed fast; timing stable; correct streak short; incorrect streak moderate; consecutive correct occasional.
-gola051,0,5,4,Accuracy medium; speed fast; timing stable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-kebi083,3,9,4,Accuracy medium; speed fast; timing stable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-punu537,0,5,4,Accuracy medium; speed fast; timing stable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-zoma564,3,0,4,Accuracy medium; speed fast; timing stable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-cywo537,0,0,5,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-jexu775,3,0,5,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-vyxy108,0,5,5,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-xaja332,3,0,5,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
-loby351,0,9,5,Accuracy medium; speed moderate; timing moderately variable; correct streak moderate; incorrect streak long; consecutive correct occasional.
+zoma564,3,0,0,Accuracy medium (75.44%); speed fast (10.99s); timing stable (var=148.86); correct streak moderate (15); incorrect streak long (6); consecutive correct occasional (0.64).
+weru214,3,9,0,Accuracy medium (77.19%); speed fast (14.31s); timing stable (var=108.65); correct streak moderate (12); incorrect streak short (3); consecutive correct occasional (0.62).
+hywy001,3,9,0,Accuracy medium (73.68%); speed fast (14.03s); timing stable (var=109.13); correct streak moderate (16); incorrect streak short (2); consecutive correct occasional (0.57).
+dasy955,0,9,0,Accuracy medium (70.18%); speed fast (13.76s); timing stable (var=118.45); correct streak moderate (14); incorrect streak short (3); consecutive correct occasional (0.52).
+foji729,3,9,0,Accuracy medium (73.68%); speed fast (13.37s); timing stable (var=107.37); correct streak moderate (14); incorrect streak short (2); consecutive correct occasional (0.55).
+wozo826,4,3,1,Accuracy low (47.37%); speed slow (26.27s); timing highly variable (var=598.06); correct streak moderate (15); incorrect streak long (17); consecutive correct rare (0.38).
+bowo488,4,3,1,Accuracy low (57.89%); speed slow (20.94s); timing highly variable (var=486.62); correct streak moderate (12); incorrect streak long (10); consecutive correct rare (0.46).
+guge611,4,4,1,Accuracy low (56.14%); speed slow (19.76s); timing moderately variable (var=173.90); correct streak short (11); incorrect streak long (9); consecutive correct rare (0.43).
+zejy480,4,3,1,Accuracy low (54.39%); speed moderate (16.57s); timing highly variable (var=384.37); correct streak short (6); incorrect streak long (6); consecutive correct rare (0.39).
+nysa238,4,3,1,Accuracy low (52.63%); speed slow (25.55s); timing highly variable (var=579.71); correct streak moderate (13); incorrect streak long (9); consecutive correct rare (0.41).
+xafy802,3,0,2,Accuracy medium (75.44%); speed slow (21.63s); timing moderately variable (var=266.57); correct streak moderate (15); incorrect streak short (3); consecutive correct occasional (0.62).
+heda014,1,6,2,Accuracy medium (84.21%); speed moderate (16.48s); timing moderately variable (var=313.63); correct streak long (27); incorrect streak short (3); consecutive correct frequent (0.77).
+wyja070,3,8,2,Accuracy medium (77.19%); speed moderate (16.44s); timing highly variable (var=579.84); correct streak short (11); incorrect streak moderate (4); consecutive correct occasional (0.64).
+myte214,5,7,2,Accuracy medium (71.93%); speed slow (30.38s); timing highly variable (var=2182.39); correct streak moderate (12); incorrect streak moderate (4); consecutive correct occasional (0.59).
+pino324,5,7,2,Accuracy medium (71.93%); speed slow (27.58s); timing highly variable (var=954.72); correct streak moderate (15); incorrect streak long (5); consecutive correct occasional (0.59).
+kaho190,0,5,3,Accuracy medium (68.42%); speed slow (24.55s); timing highly variable (var=403.32); correct streak short (11); incorrect streak moderate (4); consecutive correct occasional (0.54).
+xoky149,0,5,3,Accuracy medium (66.67%); speed slow (20.52s); timing highly variable (var=489.20); correct streak short (9); incorrect streak long (8); consecutive correct occasional (0.52).
+tuve726,0,5,3,Accuracy medium (68.42%); speed slow (20.04s); timing highly variable (var=337.00); correct streak moderate (12); incorrect streak long (5); consecutive correct occasional (0.54).
+hiwu589,5,7,3,Accuracy medium (66.67%); speed slow (21.69s); timing highly variable (var=1769.19); correct streak short (8); incorrect streak long (7); consecutive correct rare (0.50).
+fode209,5,7,3,Accuracy medium (66.67%); speed slow (31.43s); timing highly variable (var=1921.09); correct streak short (10); incorrect streak long (7); consecutive correct occasional (0.54).
+gery678,2,1,4,Accuracy low (35.09%); speed fast (14.39s); timing stable (var=54.11); correct streak short (6); incorrect streak long (26); consecutive correct rare (0.25).
+bacy598,2,1,4,Accuracy low (24.56%); speed fast (7.37s); timing stable (var=108.91); correct streak short (6); incorrect streak long (13); consecutive correct rare (0.12).
+ninu744,2,4,4,Accuracy low (38.60%); speed fast (13.39s); timing stable (var=68.46); correct streak short (8); incorrect streak long (13); consecutive correct rare (0.25).
+syvi476,2,4,4,Accuracy low (38.60%); speed fast (10.26s); timing stable (var=73.11); correct streak short (7); incorrect streak long (11); consecutive correct rare (0.23).
+xopa120,2,1,4,Accuracy low (24.56%); speed fast (13.48s); timing stable (var=148.65); correct streak short (7); incorrect streak long (36); consecutive correct rare (0.16).

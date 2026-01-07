@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from sklearn.mixture import GaussianMixture
+from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bouldin_score
 
 from config import K_RANGE, NARRATIVE_TEMPLATE_VERSION, OUTPUT_DIR, make_versioned_filename
 
@@ -12,8 +14,17 @@ def main() -> None:
     index_path = OUTPUT_DIR / index_filename
     if not emb_path.exists() or not index_path.exists():
         raise SystemExit("Embeddings or index not found. Run 02_compute_embeddings.py first.")
-    X = np.load(emb_path)
+    X_raw = np.load(emb_path)
     index_df = pd.read_csv(index_path)
+
+    # 1. Fix Curse of Dimensionality: Apply PCA
+    # Reduce to 95% variance or max 50 components
+    n_components = min(50, X_raw.shape[0], X_raw.shape[1])
+    print(f"Applying PCA to reduce dimensionality (target components={n_components})...")
+    pca = PCA(n_components=n_components, random_state=42)
+    X = pca.fit_transform(X_raw)
+    explained_var = np.sum(pca.explained_variance_ratio_)
+    print(f"PCA reduced shape: {X.shape}, Explained Variance: {explained_var:.2%}")
 
     best_model_info: dict | None = None
     best_bic = np.inf
@@ -22,18 +33,42 @@ def main() -> None:
 
     covariance_types = ("full", "diag", "tied", "spherical")
 
+    # 2. Stability Testing: Run multiple initializations (n_init increased)
+    # We will also compute Silhouette for reference but select on BIC
+    print("Running GMM grid search...")
     for k in K_RANGE:
         for cov in covariance_types:
             try:
-                gm = GaussianMixture(n_components=int(k), covariance_type=cov, random_state=42, n_init=5)
+                # n_init=20 ensures we restart 20 times and pick best log-likelihood
+                gm = GaussianMixture(n_components=int(k), covariance_type=cov, random_state=42, n_init=20)
                 gm.fit(X)
                 bic_val = float(gm.bic(X))
-                rows.append({"K": int(k), "covariance_type": cov, "bic": bic_val})
+                
+                labels = gm.predict(X)
+                if len(np.unique(labels)) > 1:
+                    sil = silhouette_score(X, labels)
+                    ch = calinski_harabasz_score(X, labels)
+                    db = davies_bouldin_score(X, labels)
+                else:
+                    sil = -1.0
+                    ch = None
+                    db = None
+
+                rows.append({
+                    "K": int(k), 
+                    "covariance_type": cov, 
+                    "bic": bic_val,
+                    "silhouette": sil,
+                    "calinski_harabasz": ch,
+                    "davies_bouldin": db
+                })
+
                 if bic_val < best_bic:
                     best_bic = bic_val
                     best_model_info = {"k": int(k), "covariance_type": cov}
-                    best_labels = gm.predict(X)
-            except Exception:
+                    best_labels = labels
+            except Exception as e:
+                print(f"Skipping K={k}, cov={cov} due to error: {e}")
                 continue
 
     if not rows:

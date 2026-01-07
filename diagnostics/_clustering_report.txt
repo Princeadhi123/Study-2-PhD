@@ -7,16 +7,22 @@ Features used: n_items, total_correct, total_incorrect, accuracy, avg_rt, var_rt
 KMeans
   best_k: 2
   silhouette: 0.3410694750001678
+  calinski_harabasz: 327.7764433999679
+  davies_bouldin: 1.1541475149866036
 
 Agglomerative
   best_k: 2
   silhouette: 0.3295990176735135
+  calinski_harabasz: 303.23596931564936
+  davies_bouldin: 1.169853830142246
 
 Birch
   best_k: 2
   silhouette: 0.44090768448895057
+  calinski_harabasz: 196.07710539591457
+  davies_bouldin: 0.8614719859845409
 
-GMM
+GMM (Silhouette Best)
   best_k: 2
   covariance_type: tied
   silhouette: 0.44490495828641474
