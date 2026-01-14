@@ -1,6 +1,8 @@
 Cluster,Keywords
-0,"medium (0.67), moderate (0.58), fast (0.37)"
-1,"rare (0.48), moderate (0.39), high (0.39)"
-2,"medium (0.66), moderate (0.66), slow (0.25)"
-3,"slow (0.54), medium (0.47), moderate (0.45)"
-4,"low (0.70), rare (0.59), fast (0.36)"
+0,"moderate (0.88), medium (0.48), rare (0.00)"
+1,"low (0.75), rare (0.62), moderate (0.15)"
+2,"medium (0.69), moderate (0.57), fast (0.43)"
+3,"high (0.75), frequent (0.62), fast (0.17)"
+4,"frequent (0.76), medium (0.49), moderate (0.37)"
+5,"medium (0.77), moderate (0.50), slow (0.36)"
+6,"rare (0.76), medium (0.49), moderate (0.36)"
