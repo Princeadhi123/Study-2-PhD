@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
 
-from config import OUTPUT_DIR, STUDENT_CLUSTERS_PATH, make_versioned_filename
+from config import OUTPUT_DIR, STUDENT_CLUSTERS_PATH, make_versioned_filename, DERIVED_FEATURES_PATH
 
 
 def _load_embeddings():
@@ -98,6 +98,107 @@ def _plot_scatter(
     print(f"Saved {title} plot to {out_path}")
 
 
+def _plot_pca_loadings(coords_pca: pd.DataFrame) -> None:
+    """Calculates and plots the correlation of PC1/PC2 with numeric features."""
+    if not DERIVED_FEATURES_PATH.exists():
+        print(f"Derived features not found at {DERIVED_FEATURES_PATH}, skipping PCA loadings heatmap.")
+        return
+
+    # Load numeric features
+    df_features = pd.read_csv(DERIVED_FEATURES_PATH)
+    
+    # Recalculate derived columns (consistent with 01_build_narratives)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        df_features["accuracy"] = df_features["total_correct"] / df_features["n_items"].replace(0, np.nan)
+        std_rt = np.sqrt(df_features["var_rt"].clip(lower=0.0))
+        df_features["rt_cv"] = std_rt / df_features["avg_rt"].replace(0, np.nan)
+
+    # Select relevant numeric columns
+    numeric_cols = [
+        "total_correct",
+        "total_incorrect",
+        "accuracy",
+        "consecutive_correct_rate",
+        "longest_incorrect_streak",
+        "response_variance",
+        "longest_correct_streak",
+        "var_rt",
+        "rt_cv",
+        "avg_rt"
+    ]
+    
+    # Merge with PCA coordinates
+    # coords_pca has "IDCode", "dim1" (PC1), "dim2" (PC2)
+    merged = coords_pca.merge(df_features[["IDCode"] + numeric_cols], on="IDCode", how="inner")
+    
+    if merged.empty:
+        return
+
+    # Compute correlations (loadings)
+    # dim1 is PC1, dim2 is PC2
+    correlations = merged[["dim1", "dim2"] + numeric_cols].corr(method="spearman")
+    loadings = correlations.loc[numeric_cols, ["dim1", "dim2"]]
+    loadings.columns = ["PC1", "PC2"]
+    
+    # Drop rows that are all NaN (e.g. n_items if constant)
+    loadings = loadings.dropna(how="all")
+
+    # Transpose for horizontal representation (PCs on Y-axis, Features on X-axis)
+    loadings = loadings.T
+
+    # Rename columns for better readability
+    feature_map = {
+        "total_correct": "Total Correct",
+        "total_incorrect": "Total Incorrect",
+        "accuracy": "Accuracy",
+        "consecutive_correct_rate": "Consec. Correct Rate",
+        "longest_incorrect_streak": "Max Incorrect Streak",
+        "response_variance": "Response Variance",
+        "longest_correct_streak": "Max Correct Streak",
+        "var_rt": "RT Variance",
+        "rt_cv": "RT Coeff. Variation",
+        "avg_rt": "Avg Response Time"
+    }
+    loadings = loadings.rename(columns=feature_map)
+
+    # Plot Heatmap
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+    except ImportError:
+        print("seaborn not installed, skipping heatmap.")
+        return
+
+    # Wider figure for horizontal layout
+    fig, ax = plt.subplots(figsize=(12, 4))
+    sns.heatmap(
+        loadings, 
+        annot=True, 
+        cmap="coolwarm", 
+        center=0, 
+        vmin=-1, 
+        vmax=1, 
+        ax=ax, 
+        fmt=".2f",
+        linewidths=0.5,
+        cbar_kws={"label": "Spearman Correlation"}
+    )
+    ax.set_title("PCA Loadings: Feature Contributions to Axes", fontsize=14, pad=15)
+    
+    # Rotate x-axis labels for readability
+    plt.xticks(rotation=45, ha="right")
+    plt.yticks(rotation=0)
+
+    figures_dir = OUTPUT_DIR / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    out_path = figures_dir / make_versioned_filename("pca_loadings_heatmap.png")
+    
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=300)
+    plt.close(fig)
+    print(f"Saved PCA loadings heatmap to {out_path}")
+
+
 def _plot_narrative_k_selection() -> None:
     results_filename = make_versioned_filename("model_results_narrative.csv")
     results_path = OUTPUT_DIR / results_filename
@@ -163,6 +264,9 @@ def main() -> None:
     coords_pca = coords.copy()
     coords_pca["dim1"] = X_pca[:, 0]
     coords_pca["dim2"] = X_pca[:, 1]
+
+    # Plot PCA Loadings Heatmap (Correlation with Numeric Features)
+    _plot_pca_loadings(coords_pca)
 
     _plot_scatter(
         coords_pca,
