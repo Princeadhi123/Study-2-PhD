@@ -533,6 +533,110 @@ def plot_mark_correlations() -> None:
     print(f"Saved correlation matrix to {out_path}")
 
 
+def plot_mean_eta_comparison(anova_df: pd.DataFrame) -> None:
+    try:
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+    except ImportError:
+        print("seaborn or matplotlib not installed, skipping mean eta plot.")
+        return
+
+    base_dir = Path(__file__).resolve().parent
+    figures_dir = base_dir / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+
+    subjects = ["S1", "S2", "S3", "S5", "S6"]
+    
+    # Filter for relevant outcomes
+    df_sub = anova_df[anova_df["outcome"].isin(subjects)].copy()
+    
+    results = []
+
+    # 1. Numeric Baseline
+    # template="GLOBAL", cluster_label="gmm_bic_best_label"
+    num_mask = (df_sub["template"] == "GLOBAL") & (df_sub["cluster_label"] == "gmm_bic_best_label")
+    if num_mask.any():
+        mean_eta = df_sub.loc[num_mask, "eta_squared"].mean()
+        results.append({
+            "Label": "Numeric (GMM-BIC)",
+            "Type": "Numeric Baseline",
+            "Mean_Eta_Squared": mean_eta
+        })
+
+    # 2. Narrative Models
+    # template in TEMPLATES, embedding_id in EMBEDDING_IDS, cluster_label="narrative_best_label"
+    nar_mask = (df_sub["template"].isin(TEMPLATES)) & \
+               (df_sub["embedding_id"].isin(EMBEDDING_IDS)) & \
+               (df_sub["cluster_label"] == "narrative_best_label")
+    
+    if nar_mask.any():
+        nar_df = df_sub[nar_mask]
+        grouped = nar_df.groupby(["template", "embedding_id"])["eta_squared"].mean().reset_index()
+        
+        for _, row in grouped.iterrows():
+            template = row["template"]
+            emb_id = row["embedding_id"]
+            val = row["eta_squared"]
+            
+            # Clean model name for display
+            # emb_id is like all_MiniLM_L6_v2
+            clean_model = emb_id.replace("all_", "").replace("_v2", "").replace("_", "-")
+            
+            label = f"Template {template}\n({clean_model})"
+            
+            results.append({
+                "Label": label,
+                "Type": "Narrative Clusters",
+                "Mean_Eta_Squared": val
+            })
+
+    if not results:
+        print("No data for mean eta comparison.")
+        return
+
+    res_df = pd.DataFrame(results)
+
+    # Plot
+    plt.figure(figsize=(10, 6))
+    sns.set_theme(style="whitegrid")
+    
+    palette = {"Numeric Baseline": "#7f7f7f", "Narrative Clusters": "#1f77b4"}
+    
+    ax = sns.barplot(
+        data=res_df, 
+        x="Label", 
+        y="Mean_Eta_Squared", 
+        hue="Type", 
+        dodge=False,
+        palette=palette
+    )
+    
+    # Add values on top of bars
+    for p in ax.patches:
+        height = p.get_height()
+        if height > 0:
+            ax.text(
+                p.get_x() + p.get_width() / 2., 
+                height + 0.01, 
+                f'{height:.2f}', 
+                ha="center", 
+                fontsize=10, 
+                fontweight='bold'
+            )
+
+    plt.title("Predictive Power Comparison: Mean Eta-Squared (S1-S6)", fontsize=14, fontweight='bold')
+    plt.ylabel("Mean Eta-Squared (Higher is Stronger)", fontsize=12)
+    plt.xlabel("")
+    plt.ylim(0, 1.0)
+    plt.legend(title=None)
+    plt.tight_layout()
+    
+    out_path = figures_dir / "final_mean_eta_comparison.png"
+    plt.savefig(out_path, dpi=300)
+    plt.close()
+    print(f"Saved combined Mean Eta plot to {out_path}")
+
+
 def main() -> None:
     metrics = load_metrics()
     plot_internal_metrics(metrics)
@@ -540,6 +644,7 @@ def main() -> None:
 
     anova_df = load_anova_results()
     plot_anova_subjects(anova_df)
+    plot_mean_eta_comparison(anova_df)
     
     plot_mark_correlations()
 
