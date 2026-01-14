@@ -128,17 +128,21 @@ def _plot_pca_loadings(coords_pca: pd.DataFrame) -> None:
     ]
     
     # Merge with PCA coordinates
-    # coords_pca has "IDCode", "dim1" (PC1), "dim2" (PC2)
+    # coords_pca has "IDCode", "dim1" (PC1), "dim2" (PC2), potentially "dim3" (PC3)
+    pca_cols = [c for c in coords_pca.columns if c.startswith("dim")]
     merged = coords_pca.merge(df_features[["IDCode"] + numeric_cols], on="IDCode", how="inner")
     
     if merged.empty:
         return
 
     # Compute correlations (loadings)
-    # dim1 is PC1, dim2 is PC2
-    correlations = merged[["dim1", "dim2"] + numeric_cols].corr(method="spearman")
-    loadings = correlations.loc[numeric_cols, ["dim1", "dim2"]]
-    loadings.columns = ["PC1", "PC2"]
+    cols_to_corr = pca_cols + numeric_cols
+    correlations = merged[cols_to_corr].corr(method="spearman")
+    loadings = correlations.loc[numeric_cols, pca_cols]
+    
+    # Rename PC columns dynamically
+    pc_names = [f"PC{i+1}" for i in range(len(pca_cols))]
+    loadings.columns = pc_names
     
     # Drop rows that are all NaN (e.g. n_items if constant)
     loadings = loadings.dropna(how="all")
@@ -258,36 +262,51 @@ def main() -> None:
     nar_clusters, stud_clusters = _load_clusters()
     coords = _prepare_coords(index_df, nar_clusters, stud_clusters)
 
-    # --- PCA projection (baseline, as before) ---
-    pca = PCA(n_components=2, random_state=42)
+    # --- PCA projection (baseline, with 3 components to capture Timing) ---
+    pca = PCA(n_components=3, random_state=42)
     X_pca = pca.fit_transform(X)
     coords_pca = coords.copy()
     coords_pca["dim1"] = X_pca[:, 0]
     coords_pca["dim2"] = X_pca[:, 1]
+    coords_pca["dim3"] = X_pca[:, 2]
 
     # Plot PCA Loadings Heatmap (Correlation with Numeric Features)
     _plot_pca_loadings(coords_pca)
 
+    # Plot 1: Standard PC1 vs PC2 (Intensity vs Performance)
     _plot_scatter(
         coords_pca,
         color_col="narrative_best_label",
-        title="Narrative GMM-BIC clusters (embedding PCA)",
-        filename=make_versioned_filename("embeddings_pca_narrative_clusters.png"),
+        title="Narrative GMM-BIC clusters (PCA: Intensity vs Performance)",
+        filename=make_versioned_filename("embeddings_pca_PC1_vs_PC2.png"),
         x_col="dim1",
         y_col="dim2",
-        x_label="PC1 (narrative embeddings)",
-        y_label="PC2 (narrative embeddings)",
+        x_label="PC1 (Behavioral Intensity)",
+        y_label="PC2 (Academic Performance)",
     )
 
+    # Plot 2: PC2 vs PC3 (Performance vs Timing) - The "Cluster Separator"
+    _plot_scatter(
+        coords_pca,
+        color_col="narrative_best_label",
+        title="Narrative GMM-BIC clusters (PCA: Performance vs Speed)",
+        filename=make_versioned_filename("embeddings_pca_PC2_vs_PC3.png"),
+        x_col="dim2",
+        y_col="dim3",
+        x_label="PC2 (Academic Performance)",
+        y_label="PC3 (Speed & Consistency)",
+    )
+
+    # Keep the numeric cluster comparisons on PC1/PC2 for reference
     _plot_scatter(
         coords_pca,
         color_col="gmm_bic_best_label",
-        title="Numeric GMM-BIC clusters (embedding PCA)",
+        title="Numeric GMM-BIC clusters (PCA: Intensity vs Performance)",
         filename=make_versioned_filename("embeddings_pca_gmm_bic_clusters.png"),
         x_col="dim1",
         y_col="dim2",
-        x_label="PC1 (narrative embeddings)",
-        y_label="PC2 (narrative embeddings)",
+        x_label="PC1 (Behavioral Intensity)",
+        y_label="PC2 (Academic Performance)",
     )
 
     _plot_scatter(
