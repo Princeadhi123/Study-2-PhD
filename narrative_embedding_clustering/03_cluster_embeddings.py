@@ -117,9 +117,14 @@ def main() -> None:
     clusters_df["narrative_gmm_bic_best_label"] = best_labels
     if best_aicc_labels is not None:
         clusters_df["narrative_gmm_aicc_best_label"] = best_aicc_labels
+        # Set AICc as the default "best" label for downstream use
+        clusters_df["narrative_best_label"] = best_aicc_labels
+        print(f"Using AICc-selected model (K={best_aicc_model_info['k']}, cov={best_aicc_model_info['covariance_type']}) as primary.")
     else:
         clusters_df["narrative_gmm_aicc_best_label"] = -1
-    clusters_df["narrative_best_label"] = best_labels
+        # Fallback to BIC if AICc failed (unlikely with PCA=20)
+        clusters_df["narrative_best_label"] = best_labels
+        print(f"AICc model invalid, falling back to BIC model (K={best_model_info['k']}) as primary.")
     out_filename = make_versioned_filename("narrative_clusters.csv")
     out_path = OUTPUT_DIR / out_filename
     clusters_df.to_csv(out_path, index=False)
