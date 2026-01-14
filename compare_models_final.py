@@ -61,22 +61,29 @@ def main():
         sil = np.nan
         ch = np.nan
         db = np.nan
+        ari = np.nan
         
         if metrics_file.exists():
             metrics_df = pd.read_csv(metrics_file)
-            # Filter for narrative_best_label rows
-            # This file contains metrics for the *chosen* best model (which is now AICc based)
-            subset = metrics_df[metrics_df["baseline"] == "narrative_best_label"]
             
-            for _, row in subset.iterrows():
+            for _, row in metrics_df.iterrows():
                 m = row["metric"]
+                b = row["baseline"]
                 v = row["value"]
-                if m == "silhouette_cosine":
-                    sil = v
-                elif m == "calinski_harabasz":
-                    ch = v
-                elif m == "davies_bouldin":
-                    db = v
+                
+                # Internal Metrics (on narrative clusters)
+                if b == "narrative_best_label":
+                    if m == "silhouette_cosine":
+                        sil = v
+                    elif m == "calinski_harabasz":
+                        ch = v
+                    elif m == "davies_bouldin":
+                        db = v
+                
+                # External Validity (ARI vs Numeric Clusters)
+                # Using AIC baseline to match our AICc selection philosophy
+                elif m == "adjusted_rand_index" and b == "gmm_aic_best_label":
+                    ari = v
         else:
             print(f"  Missing metrics file: {metrics_file}")
 
@@ -121,6 +128,7 @@ def main():
             "Silhouette (Cosine)": sil,
             "Calinski-Harabasz": ch,
             "Davies-Bouldin": db,
+            "ARI (vs Numeric)": ari,
             "Mean Eta^2": mean_eta
         })
 
@@ -144,22 +152,30 @@ def main():
     # Eta: Higher is better
     # Sil: Higher is better
     # DB: Lower is better -> Invert
+    # ARI: Higher is better
     
     df_norm = final_df.copy()
     df_norm["Eta_Score"] = df_norm["Mean Eta^2"] / df_norm["Mean Eta^2"].max()
     df_norm["Sil_Score"] = df_norm["Silhouette (Cosine)"] / df_norm["Silhouette (Cosine)"].max()
-    df_norm["DB_Score"] = df_norm["Davies-Bouldin"].min() / df_norm["Davies-Bouldin"] 
+    df_norm["DB_Score"] = df_norm["Davies-Bouldin"].min() / df_norm["Davies-Bouldin"]
+    df_norm["ARI_Score"] = df_norm["ARI (vs Numeric)"] / df_norm["ARI (vs Numeric)"].max()
     
-    # Composite Score: 60% External (Eta), 40% Internal (Average of Sil and DB)
-    df_norm["Composite"] = (0.6 * df_norm["Eta_Score"]) + (0.2 * df_norm["Sil_Score"]) + (0.2 * df_norm["DB_Score"])
+    # Composite Score: 
+    # 50% External Outcome (Eta)
+    # 40% Internal Quality (Sil + DB)
+    # 10% External Alignment (ARI)
+    df_norm["Composite"] = (0.5 * df_norm["Eta_Score"]) + \
+                           (0.2 * df_norm["Sil_Score"]) + \
+                           (0.2 * df_norm["DB_Score"]) + \
+                           (0.1 * df_norm["ARI_Score"])
     
     df_norm = df_norm.sort_values("Composite", ascending=False)
-    print("Scoring Weights: 60% Predictive Power (Eta^2), 40% Cluster Quality (Sil + DB)")
-    print(df_norm[["Template", "Model", "Composite", "Eta_Score", "Sil_Score", "DB_Score"]].to_string(index=False, float_format=lambda x: "{:.4f}".format(x)))
+    print("Scoring Weights: 50% Predictive (Eta), 40% Structural (Sil+DB), 10% Alignment (ARI)")
+    print(df_norm[["Template", "Model", "Composite", "Eta_Score", "Sil_Score", "DB_Score", "ARI_Score"]].to_string(index=False, float_format=lambda x: "{:.4f}".format(x)))
     
     winner = df_norm.iloc[0]
     print(f"\n🏆 THE WINNER IS: {winner['Template']} + {winner['Model']} 🏆")
-    print(f"Reason: Best balance of predictive power (Eta={winner['Eta_Score']:.2f} relative score) and structural quality.")
+    print(f"Reason: Best balance of predictive power, structural quality, and numeric alignment.")
 
 if __name__ == "__main__":
     main()
