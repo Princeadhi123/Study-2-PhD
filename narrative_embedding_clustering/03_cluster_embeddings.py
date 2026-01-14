@@ -21,7 +21,7 @@ def main() -> None:
     # Reduce to 20 components to allow AICc to accept higher K models (Parameters < Sample Size)
     # With D=50, K=6 Diag model has > 600 params > 537 samples -> Rejected.
     # With D=20, K=10 Diag model has ~400 params < 537 samples -> Accepted.
-    n_components = min(20, X_raw.shape[0], X_raw.shape[1])
+    n_components = min(50, X_raw.shape[0], X_raw.shape[1])
     print(f"Applying PCA to reduce dimensionality (target components={n_components})...")
     pca = PCA(n_components=n_components, random_state=42)
     X = pca.fit_transform(X_raw)
