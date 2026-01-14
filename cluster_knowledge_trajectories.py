@@ -714,13 +714,35 @@ def gmm_bic_aic_grid(
             try:
                 gm = GaussianMixture(n_components=k, covariance_type=cov, random_state=42, n_init=5)
                 gm.fit(X)
+                n_samples = X.shape[0]
                 bic = float(gm.bic(X))
                 aic = float(gm.aic(X))
-                rows.append({"K": int(k), "covariance_type": cov, "bic": bic, "aic": aic})
+                
+                # Calculate number of parameters (k_params) from BIC/AIC difference
+                # BIC = -2*LL + k*ln(n)
+                # AIC = -2*LL + 2*k
+                # BIC - AIC = k * (ln(n) - 2)
+                # k = (BIC - AIC) / (ln(n) - 2)
+                ln_n = np.log(n_samples)
+                if abs(ln_n - 2.0) > 1e-6:
+                    k_params = (bic - aic) / (ln_n - 2.0)
+                else:
+                    # Fallback if ln(n) is exactly 2 (n approx 7.39), unlikely but safe to handle
+                    k_params = 0 
+                
+                # AICc formula: AIC + (2k^2 + 2k) / (n - k - 1)
+                # Only valid if n > k + 1, otherwise set to infinity
+                if n_samples > k_params + 1:
+                    correction = (2 * k_params**2 + 2 * k_params) / (n_samples - k_params - 1)
+                    aicc = aic + correction
+                else:
+                    aicc = np.inf
+                
+                rows.append({"K": int(k), "covariance_type": cov, "bic": bic, "aic": aic, "aicc": aicc})
                 if bic < best_bic["bic"]:
-                    best_bic = {"k": int(k), "covariance_type": cov, "bic": bic, "aic": aic}
+                    best_bic = {"k": int(k), "covariance_type": cov, "bic": bic, "aic": aic, "aicc": aicc}
                 if aic < best_aic["aic"]:
-                    best_aic = {"k": int(k), "covariance_type": cov, "bic": bic, "aic": aic}
+                    best_aic = {"k": int(k), "covariance_type": cov, "bic": bic, "aic": aic, "aicc": aicc}
             except Exception:
                 continue
     return pd.DataFrame(rows), best_bic, best_aic
@@ -1128,11 +1150,12 @@ def main():
     _save_line_plot(gm_curve, "K", "silhouette", "GMM silhouette vs K (best cov)", figures_dir / "gmm" / "gmm_silhouette_vs_k.png")
     _save_line_plot(br_curve, "K", "silhouette", "Birch silhouette vs K", figures_dir / "birch" / "birch_silhouette_vs_k.png")
 
-    # GMM information-criteria diagnostics (BIC/AIC)
+    # GMM information-criteria diagnostics (BIC/AIC/AICc)
     gm_bic_df, gm_bic_best, gm_aic_best = gmm_bic_aic_grid(Xs, k_range=range(2, 11))
-    gm_bic_df.to_csv(model_results_dir / "gmm_bic_aic.csv", index=False)
+    gm_bic_df.to_csv(model_results_dir / "gmm_model_selection.csv", index=False)
     _save_line_plot_hue(gm_bic_df, "K", "bic", "covariance_type", "GMM BIC vs K", figures_dir / "gmm" / "BIC" / "gmm_bic_vs_k.png")
     _save_line_plot_hue(gm_bic_df, "K", "aic", "covariance_type", "GMM AIC vs K", figures_dir / "gmm" / "AIC" / "gmm_aic_vs_k.png")
+    _save_line_plot_hue(gm_bic_df, "K", "aicc", "covariance_type", "GMM AICc vs K", figures_dir / "gmm" / "AICc" / "gmm_aicc_vs_k.png")
 
 
     # Prepare labels and internal-validity scores for GMM models chosen by

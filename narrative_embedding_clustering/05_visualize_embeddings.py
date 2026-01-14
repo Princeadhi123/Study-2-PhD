@@ -214,53 +214,85 @@ def _plot_narrative_k_selection() -> None:
     if not required_cols.issubset(df.columns) or df.empty:
         return
 
+def _plot_metric_selection(df: pd.DataFrame, metric: str, title_suffix: str, filename_suffix: str) -> None:
     try:
         import matplotlib.pyplot as plt
-    except ImportError as exc:
-        raise SystemExit(
-            "matplotlib is required for visualization. Install it with:\n"
-            "pip install matplotlib"
-        ) from exc
+    except ImportError:
+        return
 
     fig, ax = plt.subplots(figsize=(8, 6))
 
-    for cov, sub in df.groupby("covariance_type"):
-        sub_sorted = sub.sort_values("K")
-        ax.plot(sub_sorted["K"], sub_sorted["bic"], marker="o", label=cov)
+    # Filter out infinite values for plotting
+    df_clean = df[np.isfinite(df[metric])].copy()
+    
+    if df_clean.empty:
+        print(f"No valid {metric} values to plot.")
+        plt.close(fig)
+        return
 
-    best_idx = df["bic"].idxmin()
-    best_row = df.loc[best_idx]
+    for cov, sub in df_clean.groupby("covariance_type"):
+        sub_sorted = sub.sort_values("K")
+        ax.plot(sub_sorted["K"], sub_sorted[metric], marker="o", label=cov)
+
+    best_idx = df_clean[metric].idxmin()
+    best_row = df_clean.loc[best_idx]
     best_k = int(best_row["K"])
     best_cov = str(best_row["covariance_type"])
-    best_bic = float(best_row["bic"])
+    best_val = float(best_row[metric])
     ax.axvline(best_k, color="red", linestyle="--", alpha=0.7)
 
     ax.set_xlabel("Number of narrative clusters (K)")
-    ax.set_ylabel("BIC")
-    ax.set_title(f"Narrative GMM model selection by BIC (best K={best_k}, cov={best_cov})")
+    ax.set_ylabel(metric.upper())
+    ax.set_title(f"Narrative GMM model selection by {title_suffix} (best K={best_k}, cov={best_cov})")
     ax.grid(True, alpha=0.2)
     ax.legend(title="covariance_type")
 
     figures_dir = OUTPUT_DIR / "figures"
     figures_dir.mkdir(parents=True, exist_ok=True)
-    out_path = figures_dir / make_versioned_filename("narrative_gmm_bic_vs_k.png")
+    out_path = figures_dir / make_versioned_filename(f"narrative_gmm_{filename_suffix}.png")
     fig.tight_layout()
     fig.savefig(out_path, dpi=200)
     plt.close(fig)
 
     print(
-        "Selected narrative GMM by BIC: K={k}, cov={cov}, BIC={bic:.2f}".format(
-            k=best_k, cov=best_cov, bic=best_bic
+        "Selected narrative GMM by {metric}: K={k}, cov={cov}, {metric}={val:.2f}".format(
+            metric=metric.upper(), k=best_k, cov=best_cov, val=best_val
         )
     )
-    print(f"Saved narrative GMM model selection plot to {out_path}")
+    print(f"Saved narrative GMM {metric.upper()} plot to {out_path}")
+
+
+def _plot_narrative_k_selection() -> None:
+    # Load the latest model results
+    pattern = "model_results_narrative*.csv"
+    files = sorted(OUTPUT_DIR.glob(pattern), key=lambda f: f.stat().st_mtime, reverse=True)
+    if not files:
+        print("No narrative model results found. Run 03_cluster_embeddings.py first.")
+        return
+    
+    latest_file = files[0]
+    print(f"Loading model results from: {latest_file.name}")
+    df = pd.read_csv(latest_file)
+    
+    if "bic" in df.columns:
+        _plot_metric_selection(df, "bic", "BIC", "bic_vs_k")
+    
+    if "aicc" in df.columns:
+        _plot_metric_selection(df, "aicc", "AICc", "aicc_vs_k")
 
 
 def main() -> None:
     _plot_narrative_k_selection()
-    X, index_df = _load_embeddings()
-    nar_clusters, stud_clusters = _load_clusters()
-    coords = _prepare_coords(index_df, nar_clusters, stud_clusters)
+    try:
+        X, index_df = _load_embeddings()
+        nar_clusters, stud_clusters = _load_clusters()
+        coords = _prepare_coords(index_df, nar_clusters, stud_clusters)
+        
+        # Additional visualizations could be added here
+        
+    except Exception as e:
+        print(f"Visualization error: {e}")
+
 
     # --- PCA projection (baseline, with 3 components to capture Timing) ---
     pca = PCA(n_components=3, random_state=42)
