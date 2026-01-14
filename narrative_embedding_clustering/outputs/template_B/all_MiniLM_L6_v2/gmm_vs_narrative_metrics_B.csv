@@ -1,12 +1,12 @@
 template_version,baseline,metric,value,description
 B,gmm_bic_best_label,adjusted_rand_index,0.15737095758554154,"Agreement between baseline cluster labels and narrative_best_label (1 = perfect match, 0 ≈ random)."
 B,gmm_aic_best_label,adjusted_rand_index,0.1884649689479399,"Agreement between baseline cluster labels and narrative_best_label (1 = perfect match, 0 ≈ random)."
-B,narrative_best_label,silhouette_cosine,0.18626609444618225,"Cluster separation in narrative embedding space using cosine distance (higher is better, max = 1)."
-B,narrative_best_label,calinski_harabasz,76.92505565871794,Calinski-Harabasz index in narrative embedding space (higher is better).
-B,narrative_best_label,davies_bouldin,3.174516225086059,Davies-Bouldin index in narrative embedding space (lower is better).
-B,gmm_bic_best_label,silhouette_cosine,0.03774356469511986,"Cluster separation in narrative embedding space using cosine distance (higher is better, max = 1)."
-B,gmm_bic_best_label,calinski_harabasz,59.871614163240515,Calinski-Harabasz index in narrative embedding space (higher is better).
-B,gmm_bic_best_label,davies_bouldin,3.6645759831825884,Davies-Bouldin index in narrative embedding space (lower is better).
-B,gmm_aic_best_label,silhouette_cosine,0.06761609762907028,"Cluster separation in narrative embedding space using cosine distance (higher is better, max = 1)."
-B,gmm_aic_best_label,calinski_harabasz,48.96622244241658,Calinski-Harabasz index in narrative embedding space (higher is better).
-B,gmm_aic_best_label,davies_bouldin,3.1294047172870036,Davies-Bouldin index in narrative embedding space (lower is better).
+B,narrative_best_label,silhouette_cosine,0.18626601994037628,"Cluster separation in narrative embedding space using cosine distance (higher is better, max = 1)."
+B,narrative_best_label,calinski_harabasz,76.92503778410286,Calinski-Harabasz index in narrative embedding space (higher is better).
+B,narrative_best_label,davies_bouldin,3.174515606318306,Davies-Bouldin index in narrative embedding space (lower is better).
+B,gmm_bic_best_label,silhouette_cosine,0.037743501365184784,"Cluster separation in narrative embedding space using cosine distance (higher is better, max = 1)."
+B,gmm_bic_best_label,calinski_harabasz,59.87161531734749,Calinski-Harabasz index in narrative embedding space (higher is better).
+B,gmm_bic_best_label,davies_bouldin,3.6645764013866753,Davies-Bouldin index in narrative embedding space (lower is better).
+B,gmm_aic_best_label,silhouette_cosine,0.06761600077152252,"Cluster separation in narrative embedding space using cosine distance (higher is better, max = 1)."
+B,gmm_aic_best_label,calinski_harabasz,48.96622299190323,Calinski-Harabasz index in narrative embedding space (higher is better).
+B,gmm_aic_best_label,davies_bouldin,3.129405298523842,Davies-Bouldin index in narrative embedding space (lower is better).

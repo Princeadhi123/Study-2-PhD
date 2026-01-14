@@ -1,7 +1,9 @@
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import torch
 
 from config import (
     EMBEDDING_BACKEND,
@@ -21,7 +23,16 @@ def load_model():
                 "sentence-transformers is required for this script. Install it with:\n"
                 "pip install sentence-transformers"
             ) from exc
-        return SentenceTransformer(EMBEDDING_MODEL_NAME)
+
+        if torch.cuda.is_available():
+            device = "cuda"
+        elif torch.backends.mps.is_available():
+            device = "mps"
+        else:
+            device = "cpu"
+            
+        print(f"Using device: {device}")
+        return SentenceTransformer(EMBEDDING_MODEL_NAME, device=device)
     raise SystemExit(f"Unsupported embedding backend: {EMBEDDING_BACKEND}")
 
 
@@ -34,7 +45,12 @@ def main() -> None:
     texts = df["narrative_text"].astype(str).tolist()
 
     model = load_model()
-    embeddings = model.encode(texts, batch_size=32, show_progress_bar=True, convert_to_numpy=True)
+    
+    # Use batch size from env or default to 32
+    batch_size = int(os.environ.get("BATCH_SIZE", "32"))
+    print(f"Computing embeddings with batch_size={batch_size}...")
+    
+    embeddings = model.encode(texts, batch_size=batch_size, show_progress_bar=True, convert_to_numpy=True)
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     emb_filename = make_versioned_filename("embeddings.npy")
