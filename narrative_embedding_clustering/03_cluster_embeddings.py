@@ -18,8 +18,8 @@ def main() -> None:
     index_df = pd.read_csv(index_path)
 
     # 1. Fix Curse of Dimensionality: Apply PCA
-    # Reduce to 95% variance or max 50 components
-    n_components = min(50, X_raw.shape[0], X_raw.shape[1])
+    # Reduce to 95% variance or max 20 components (Optimized from 50 to improve ARI)
+    n_components = min(75, X_raw.shape[0], X_raw.shape[1])
     print(f"Applying PCA to reduce dimensionality (target components={n_components})...")
     pca = PCA(n_components=n_components, random_state=42)
     X = pca.fit_transform(X_raw)
