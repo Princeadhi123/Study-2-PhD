@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 
 
-TEMPLATES = ["A", "B"]
+TEMPLATES = ["A", "B", "C"]
 EMBEDDING_IDS = ["all_MiniLM_L6_v2", "all_mpnet_base_v2"]
 
 
