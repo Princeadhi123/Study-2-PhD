@@ -1,5 +1,9 @@
+import re
+from pathlib import Path
 import numpy as np
 import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
 from sklearn.metrics import (
     adjusted_rand_score,
     calinski_harabasz_score,
@@ -26,6 +30,72 @@ def _detect_id_col(df: pd.DataFrame) -> str:
         if c.lower().startswith("id"):
             return c
     raise ValueError("Could not find an ID column in marks_with_clusters.csv")
+
+
+def _detect_subject_cols(df: pd.DataFrame) -> list:
+    cols = []
+    for c in df.columns:
+        cl = c.lower().strip()
+        if re.fullmatch(r"s\d+", cl):
+            cols.append(c)
+    return sorted(cols, key=lambda x: int(re.findall(r"\d+", x)[0])) if cols else cols
+
+
+def _zmean(df: pd.DataFrame) -> pd.DataFrame:
+    mu = df.mean()
+    sd = df.std(ddof=0).replace(0, np.nan)
+    return (df - mu) / sd
+
+
+def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, out_path: Path, title: str):
+    if not value_cols:
+        return
+        
+    z = _zmean(df[value_cols])
+    mat = z.join(df[cluster_col]).groupby(cluster_col)[value_cols].mean().sort_index()
+    vmax = float(np.nanmax(np.abs(mat.values))) if mat.size else 0.0
+    vmax = max(1.0, min(3.0, vmax))
+    vmin = -vmax
+    fig_w = max(10.0, 1.3 * len(mat.columns))
+    fig_h = max(8.0, 1.2 * max(6, len(mat)))
+    plt.figure(figsize=(fig_w, fig_h))
+    ax = sns.heatmap(
+        mat,
+        cmap="RdBu_r",
+        center=0,
+        vmin=vmin,
+        vmax=vmax,
+        annot=True,
+        fmt=".2f",
+        cbar=True,
+        cbar_kws={"label": "z-mean"},
+        annot_kws={"size": 11},
+        linewidths=0.6,
+        linecolor="#f0f0f0",
+    )
+    ax.set_xlabel("Subject area")
+    ax.set_ylabel("Cluster")
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha="right")
+    
+    counts = df[cluster_col].value_counts().sort_index()
+    ylabels = []
+    for k in mat.index.tolist():
+        ylabels.append(f"{k} (n={int(counts.get(k, 0))})")
+    ax.set_yticklabels(ylabels, rotation=0)
+    
+    for text in ax.texts:
+        try:
+            val = float(text.get_text())
+        except Exception:
+            continue
+        text.set_color("white" if abs(val) > (0.6 * vmax) else "black")
+    
+    plt.title(title)
+    plt.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_path, dpi=150)
+    plt.close()
+    print(f"Saved plot to {out_path}")
 
 
 def save_cluster_keywords(df: pd.DataFrame, text_col: str, cluster_col: str, top_n: int = 3) -> None:
@@ -375,6 +445,25 @@ def main() -> None:
             narrative_marks_path = OUTPUT_DIR / narrative_marks_filename
             gmm_group.to_csv(gmm_marks_path, index=False)
             narrative_group.to_csv(narrative_marks_path, index=False)
+
+            # --- Generate Subject-wise Heatmap for Narrative Clusters ---
+            # Identify subject columns (s1..s6)
+            subj_cols = _detect_subject_cols(merged)
+            if subj_cols:
+                figs_dir = OUTPUT_DIR / "figures"
+                figs_dir.mkdir(parents=True, exist_ok=True)
+                
+                heatmap_path = figs_dir / "subject_zmean_by_narrative_cluster.png"
+                try:
+                    _save_zmean_heatmap(
+                        merged, 
+                        "narrative_best_label", 
+                        subj_cols, 
+                        heatmap_path, 
+                        f"Subject-wise z-mean by Narrative Cluster\n(Template {NARRATIVE_TEMPLATE_VERSION.upper()})"
+                    )
+                except Exception as e:
+                    print(f"Could not save narrative heatmap: {e}")
 
             # One-way ANOVA and effect sizes for marks by cluster label.
             anova_rows: list[dict] = []
