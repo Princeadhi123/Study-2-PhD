@@ -5,6 +5,9 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from matplotlib.patches import Polygon
+import matplotlib.patheffects as PathEffects
+from scipy.spatial import ConvexHull
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
@@ -99,6 +102,112 @@ def _plot_scatter(
     plt.close(fig)
 
     print(f"Saved {title} plot to {out_path}")
+
+
+def _plot_grouped_hull_scatter(
+    coords: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    x_label: str,
+    y_label: str,
+    title: str,
+    filename: str,
+) -> None:
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        return
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+
+    # Define groups
+    groups = {
+        "Mastery Group": [3, 7, 8],
+        "Developing Group": [0, 2, 4],
+        "Struggling Group": [1, 5, 6]
+    }
+    
+    # Draw hulls first (background)
+    for name, cluster_ids in groups.items():
+        subset = coords[coords["narrative_best_label"].isin(cluster_ids)]
+        if len(subset) < 3:
+            continue
+            
+        points = subset[[x_col, y_col]].values
+        try:
+            hull = ConvexHull(points)
+            hull_points = points[hull.vertices]
+            
+            # Mimic the yellow highlighter look
+            poly = Polygon(
+                hull_points, 
+                closed=True, 
+                facecolor='none', 
+                edgecolor='yellow', 
+                linewidth=20, 
+                alpha=0.5, 
+                joinstyle='round',
+                capstyle='round'
+            )
+            ax.add_patch(poly)
+            
+            # Add text annotation
+            cx = np.mean(points[:, 0])
+            
+            # Determine placement based on group
+            if "High" in name:
+                # Place below
+                cy = np.min(points[:, 1]) - 0.005
+                va = 'top'
+            else:
+                # Place above (Mid and Low)
+                cy = np.max(points[:, 1]) + 0.005
+                va = 'bottom'
+            
+            txt = ax.text(
+                cx, cy, name, 
+                fontsize=13, 
+                color='blue', 
+                ha='center', 
+                va=va, 
+                weight='bold',
+                fontname='Comic Sans MS' # Try to look like handwriting if available, else falls back
+            )
+            txt.set_path_effects([PathEffects.withStroke(linewidth=2, foreground='white')])
+            
+        except Exception as e:
+            print(f"Could not draw hull for {name}: {e}")
+
+    # Draw scatter points
+    labels = sorted(coords["narrative_best_label"].dropna().unique())
+    scatter = ax.scatter(
+        coords[x_col],
+        coords[y_col],
+        c=coords["narrative_best_label"],
+        cmap="tab10",
+        s=40,
+        alpha=0.9,
+        edgecolor='white',
+        linewidth=0.5
+    )
+
+    handles, _ = scatter.legend_elements(prop="colors")
+    legend_labels = [f"Cluster {int(l)}" for l in labels]
+    ax.legend(handles, legend_labels, title="Narrative Cluster", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    ax.grid(True, alpha=0.2)
+
+    figures_dir = OUTPUT_DIR / "figures"
+    figures_dir.mkdir(parents=True, exist_ok=True)
+    out_path = figures_dir / filename
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=200)
+    plt.close(fig)
+
+    print(f"Saved grouped hull plot to {out_path}")
 
 
 def _enforce_pca_orientation(coords_pca: pd.DataFrame, df_features: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -347,7 +456,7 @@ def main() -> None:
 
     print(f"2D Silhouette Scores: PC1-PC2={sil_12:.3f}, PC1-PC3={sil_13:.3f}, PC2-PC3={sil_23:.3f}")
 
-    # Plot 1: Standard PC1 vs PC2 (Performance vs Intensity)
+    # Plot 1: Standard PC1 vs PC2
     _plot_scatter(
         coords_pca,
         color_col="narrative_best_label",
@@ -355,11 +464,12 @@ def main() -> None:
         filename=make_versioned_filename("embeddings_pca_PC1_vs_PC2.png"),
         x_col="dim1",
         y_col="dim2",
-        x_label=f"PC1 ({var_exp[0]:.1%} var) - Performance/Competence",
-        y_label=f"PC2 ({var_exp[1]:.1%} var) - Behavioral Intensity",
+        x_label=f"PC1 ({var_exp[0]:.1%} var)",
+        y_label=f"PC2 ({var_exp[1]:.1%} var)",
     )
 
     # Plot 2: PC1 vs PC3 (Performance vs Consistency) - Often the BEST separator
+    # Standard scatter
     _plot_scatter(
         coords_pca,
         color_col="narrative_best_label",
@@ -367,11 +477,22 @@ def main() -> None:
         filename=make_versioned_filename("embeddings_pca_PC1_vs_PC3.png"),
         x_col="dim1",
         y_col="dim3",
-        x_label=f"PC1 ({var_exp[0]:.1%} var) - Performance/Competence",
-        y_label=f"PC3 ({var_exp[2]:.1%} var) - Speed & Consistency",
+        x_label=f"PC1 ({var_exp[0]:.1%} var)",
+        y_label=f"PC3 ({var_exp[2]:.1%} var)",
     )
     
-    # Plot 3: PC2 vs PC3 (Intensity vs Consistency)
+    # Final Grouped Plot with Hulls
+    _plot_grouped_hull_scatter(
+        coords_pca,
+        x_col="dim1",
+        y_col="dim3",
+        x_label=f"PC1 ({var_exp[0]:.1%} var)",
+        y_label=f"PC3 ({var_exp[2]:.1%} var)",
+        title=f"Narrative Clusters: Final Model (PC1 vs PC3)",
+        filename=make_versioned_filename("embeddings_pca_PC1_vs_PC3_final_hulls.png")
+    )
+    
+    # Plot 3: PC2 vs PC3
     _plot_scatter(
         coords_pca,
         color_col="narrative_best_label",
@@ -379,8 +500,8 @@ def main() -> None:
         filename=make_versioned_filename("embeddings_pca_PC2_vs_PC3.png"),
         x_col="dim2",
         y_col="dim3",
-        x_label=f"PC2 ({var_exp[1]:.1%} var) - Behavioral Intensity",
-        y_label=f"PC3 ({var_exp[2]:.1%} var) - Speed & Consistency",
+        x_label=f"PC2 ({var_exp[1]:.1%} var)",
+        y_label=f"PC3 ({var_exp[2]:.1%} var)",
     )
 
     # Keep the numeric cluster comparisons on PC1/PC2 for reference
@@ -391,8 +512,8 @@ def main() -> None:
         filename=make_versioned_filename("embeddings_pca_gmm_bic_clusters.png"),
         x_col="dim1",
         y_col="dim2",
-        x_label="PC1 (Performance)",
-        y_label="PC2 (Intensity)",
+        x_label="PC1",
+        y_label="PC2",
     )
 
     _plot_scatter(
@@ -402,8 +523,8 @@ def main() -> None:
         filename=make_versioned_filename("embeddings_pca_gmm_aic_clusters.png"),
         x_col="dim1",
         y_col="dim2",
-        x_label="PC1 (Performance)",
-        y_label="PC2 (Intensity)",
+        x_label="PC1",
+        y_label="PC2",
     )
 
     # --- UMAP projection (narrative clusters only) ---
