@@ -6,7 +6,6 @@ from sklearn.metrics import (
     davies_bouldin_score,
     silhouette_score,
 )
-from sklearn.feature_extraction.text import TfidfVectorizer, ENGLISH_STOP_WORDS
 from scipy.stats import f as f_dist
 
 from config import (
@@ -32,48 +31,126 @@ def _detect_id_col(df: pd.DataFrame) -> str:
 def save_cluster_keywords(df: pd.DataFrame, text_col: str, cluster_col: str, top_n: int = 3) -> None:
     # Group text by cluster
     clusters = sorted(df[cluster_col].unique())
-    grouped_text = [" ".join(df[df[cluster_col] == c][text_col].astype(str)) for c in clusters]
 
-    # Define template-specific boilerplate words to ignore
-    template_stopwords = {
-        "student", "answered", "items", "accuracy", "proportion", "correct",
-        "responses", "average", "mean", "response", "time", "seconds",
-        "timing", "variance", "coefficient", "variation",
-        "longest", "streak", "row", "incorrect",
-        "consecutive", "answers", "rate",
-        "subject", "marks", "overall", "missingness",
-        "values", "unknown",
-        # Fluff words added by user request
-        "highly", "moderately", "occasional", "variable", "stable", "long", "short",
-        # Additional fluff for Template B
-        "speed", "var"
+    # Define the exact phrases we are looking for in the templates
+    # These map to the underlying logic of the narrative generation
+    PHRASES = {
+        'Accuracy': [
+            'high accuracy', 
+            'medium accuracy', 
+            'low accuracy'
+        ],
+        'Speed': [
+            'responses are fast', 
+            'responses are moderate', 
+            'responses are slow'
+        ],
+        'Streak': [
+            'short longest correct streak', 
+            'moderate longest correct streak', 
+            'long longest correct streak',
+            'short longest incorrect streak', 
+            'moderate longest incorrect streak', 
+            'long longest incorrect streak'
+        ]
     }
-    # Union with standard English stop words
-    custom_stop_words = list(ENGLISH_STOP_WORDS.union(template_stopwords))
 
-    # Compute TF-IDF
-    # token_pattern=r'(?u)\b[a-zA-Z]{2,}\b' ensures we only match words with 2+ letters, excluding numbers.
-    tfidf = TfidfVectorizer(
-        stop_words=custom_stop_words, 
-        max_features=1000,
-        token_pattern=r'(?u)\b[a-zA-Z]{2,}\b'
-    )
-    X_tfidf = tfidf.fit_transform(grouped_text)
-    feature_names = np.array(tfidf.get_feature_names_out())
-
-    # Extract top words per cluster
     rows = []
-    for i, cluster_label in enumerate(clusters):
-        # Get sorting indices for the i-th cluster row
-        sorted_ids = np.argsort(X_tfidf[i].toarray().flatten())[::-1][:top_n]
-        top_words = feature_names[sorted_ids]
-        scores = X_tfidf[i].toarray().flatten()[sorted_ids]
+    
+    for cluster_label in clusters:
+        # Get texts for this cluster
+        sub_df = df[df[cluster_col] == cluster_label]
+        combined_text = " ".join(sub_df[text_col].astype(str).tolist())
+        n_students = len(sub_df)
         
-        row = {"Cluster": cluster_label, "Keywords": ", ".join([f"{w} ({s:.2f})" for w, s in zip(top_words, scores)])}
-        rows.append(row)
+        cluster_parts = []
+        
+        # 1. Determine Accuracy
+        best_acc = None
+        max_acc_count = -1
+        for p in PHRASES['Accuracy']:
+            count = combined_text.count(p)
+            if count > max_acc_count:
+                max_acc_count = count
+                best_acc = p
+        
+        if best_acc:
+            # Format: "With medium accuracy"
+            # Ensure it starts with "With "
+            clean_acc = best_acc
+            if not clean_acc.lower().startswith("with"):
+                clean_acc = "With " + clean_acc
+            cluster_parts.append(clean_acc)
+
+        # 2. Determine Speed
+        best_speed = None
+        max_speed_count = -1
+        for p in PHRASES['Speed']:
+            count = combined_text.count(p)
+            if count > max_speed_count:
+                max_speed_count = count
+                best_speed = p
+        
+        if best_speed:
+            cluster_parts.append(best_speed)
+
+        # 3. Determine Streak
+        # We need to be careful here. We count all 6 types.
+        streak_counts = {}
+        for p in PHRASES['Streak']:
+            streak_counts[p] = combined_text.count(p)
+            
+        # Separate into Correct and Incorrect
+        correct_streaks = {k: v for k, v in streak_counts.items() if 'correct streak' in k and 'incorrect' not in k}
+        incorrect_streaks = {k: v for k, v in streak_counts.items() if 'incorrect streak' in k}
+        
+        # Find best of each
+        best_correct_p = max(correct_streaks, key=correct_streaks.get) if correct_streaks else None
+        best_correct_n = correct_streaks[best_correct_p] if best_correct_p else 0
+        
+        best_incorrect_p = max(incorrect_streaks, key=incorrect_streaks.get) if incorrect_streaks else None
+        best_incorrect_n = incorrect_streaks[best_incorrect_p] if best_incorrect_p else 0
+        
+        selected_streak = None
+        
+        # Selection Logic Refined for "Meaningfulness":
+        # 1. We define "Significant" as 'long' or 'moderate'. "Generic" as 'short'.
+        # 2. If one is Significant and the other is Generic, pick the Significant one.
+        # 3. If both are Significant or both are Generic, pick Correct (User preference for positivity/correctness).
+        # 4. Tie-breaking or close calls should respect the above.
+
+        # Fix: Ensure we don't match "longest" when looking for "long"
+        is_significant_correct = best_correct_p and (best_correct_p.startswith('long') or best_correct_p.startswith('moderate'))
+        is_significant_incorrect = best_incorrect_p and (best_incorrect_p.startswith('long') or best_incorrect_p.startswith('moderate'))
+        
+        if is_significant_correct and not is_significant_incorrect:
+            # Case: Moderate Correct vs Short Incorrect -> Pick Correct
+            selected_streak = best_correct_p
+        elif is_significant_incorrect and not is_significant_correct:
+            # Case: Short Correct vs Long Incorrect -> Pick Incorrect (More descriptive of the struggle)
+            selected_streak = best_incorrect_p
+        else:
+            # Both Significant (e.g. Moderate Correct vs Long Incorrect)
+            # OR Both Generic (Short Correct vs Short Incorrect)
+            # Default to Correct as per user preference for positive framing if available
+            # But only if it exists
+            if best_correct_p:
+                selected_streak = best_correct_p
+            else:
+                selected_streak = best_incorrect_p
+            
+        if selected_streak:
+            # Cleanup: remove "longest" to match user request "moderate correct streak"
+            # Phrase is like "moderate longest correct streak" -> "moderate correct streak"
+            clean_streak = selected_streak.replace("longest ", "")
+            cluster_parts.append(clean_streak)
+
+        # Join parts
+        keywords_str = ", ".join(cluster_parts)
+        rows.append({"Cluster": cluster_label, "Keywords": keywords_str})
 
     # Save
-    out_path = OUTPUT_DIR / make_versioned_filename("cluster_keywords_tfidf.csv")
+    out_path = OUTPUT_DIR / make_versioned_filename("cluster_keywords_frequency_based.csv")
     pd.DataFrame(rows).to_csv(out_path, index=False)
     print(f"Saved cluster keywords to {out_path}")
 
