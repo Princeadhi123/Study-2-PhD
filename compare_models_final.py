@@ -12,6 +12,8 @@ MODELS = [
     ("Template A", "MiniLM", OUTPUT_DIR / "template_A/all_MiniLM_L6_v2"),
     ("Template B", "MPNet", OUTPUT_DIR / "template_B/all_mpnet_base_v2"),
     ("Template B", "MiniLM", OUTPUT_DIR / "template_B/all_MiniLM_L6_v2"),
+    ("Template C", "MPNet", OUTPUT_DIR / "template_C/all_mpnet_base_v2"),
+    ("Template C", "MiniLM", OUTPUT_DIR / "template_C/all_MiniLM_L6_v2"),
 ]
 
 def calculate_eta_squared(df, group_col, value_cols):
@@ -55,7 +57,13 @@ def main():
         
         # 1. Get Internal Metrics for Best AICc Model (Cosine/Raw)
         # We use gmm_vs_narrative_metrics.csv which has the Cosine Silhouette used in plots
-        suffix = "_B" if "template_B" in str(path) else ""
+        if "template_B" in str(path):
+            suffix = "_B"
+        elif "template_C" in str(path):
+            suffix = "_C"
+        else:
+            suffix = ""
+            
         metrics_file = path / f"gmm_vs_narrative_metrics{suffix}.csv"
         
         sil = np.nan
