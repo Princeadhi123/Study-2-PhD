@@ -155,12 +155,12 @@ def _plot_grouped_hull_scatter(
             cx = np.mean(points[:, 0])
             
             # Determine placement based on group
-            if "High" in name:
+            if "Mastery" in name:
                 # Place below
                 cy = np.min(points[:, 1]) - 0.005
                 va = 'top'
             else:
-                # Place above (Mid and Low)
+                # Place above (Developing and Struggling)
                 cy = np.max(points[:, 1]) + 0.005
                 va = 'bottom'
             
@@ -170,8 +170,7 @@ def _plot_grouped_hull_scatter(
                 color='blue', 
                 ha='center', 
                 va=va, 
-                weight='bold',
-                fontname='Comic Sans MS' # Try to look like handwriting if available, else falls back
+                weight='bold'
             )
             txt.set_path_effects([PathEffects.withStroke(linewidth=2, foreground='white')])
             
@@ -179,14 +178,39 @@ def _plot_grouped_hull_scatter(
             print(f"Could not draw hull for {name}: {e}")
 
     # Draw scatter points
+    from matplotlib.colors import ListedColormap
+    
+    # Custom darker colors for contrast against yellow hull
+    # 9 distinct dark colors for clusters 0-8
+    dark_colors = [
+        '#1f77b4', # Darker Blue (standard tab10 blue is okay, but let's stick to valid distinct ones)
+        # Let's use specific strong dark colors
+        '#000080', # Navy
+        '#8B0000', # DarkRed
+        '#006400', # DarkGreen
+        '#4B0082', # Indigo
+        '#8B4513', # SaddleBrown
+        '#008080', # Teal
+        '#2F4F4F', # DarkSlateGray
+        '#B22222', # FireBrick
+        '#9932CC', # DarkOrchid
+    ]
+    # Ensure we have enough colors for the labels
+    unique_labels = sorted(coords["narrative_best_label"].dropna().unique())
+    # Cycle if needed (though we expect ~9 clusters)
+    import itertools
+    color_cycle = itertools.cycle(dark_colors)
+    mapped_colors = [next(color_cycle) for _ in range(len(unique_labels))]
+    custom_cmap = ListedColormap(mapped_colors)
+
     labels = sorted(coords["narrative_best_label"].dropna().unique())
     scatter = ax.scatter(
         coords[x_col],
         coords[y_col],
         c=coords["narrative_best_label"],
-        cmap="tab10",
+        cmap=custom_cmap,
         s=40,
-        alpha=0.9,
+        alpha=1.0, # Increased alpha for visibility
         edgecolor='white',
         linewidth=0.5
     )
@@ -488,7 +512,7 @@ def main() -> None:
         y_col="dim3",
         x_label=f"PC1 ({var_exp[0]:.1%} var)",
         y_label=f"PC3 ({var_exp[2]:.1%} var)",
-        title=f"Narrative Clusters: Final Model (PC1 vs PC3)",
+        title=f"Narrative Clusters: PC1 vs PC3",
         filename=make_versioned_filename("embeddings_pca_PC1_vs_PC3_final_hulls.png")
     )
     
