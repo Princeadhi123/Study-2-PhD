@@ -53,7 +53,7 @@ def plot_internal_metrics(metrics: pd.DataFrame) -> None:
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     internal_metrics = ["silhouette_cosine", "calinski_harabasz", "davies_bouldin"]
-    baselines = ["narrative_best_label", "gmm_aic_best_label"]
+    baselines = ["narrative_best_label", "gmm_aicc_best_label"]
 
     for metric_name in internal_metrics:
         sub = metrics[metrics["metric"] == metric_name]
@@ -82,7 +82,7 @@ def plot_internal_metrics(metrics: pd.DataFrame) -> None:
             width = 0.25
             offsets = {
                 "narrative_best_label": -width / 2,
-                "gmm_aic_best_label": width / 2,
+                "gmm_aicc_best_label": width / 2,
             }
 
             for baseline in baselines:
@@ -149,7 +149,7 @@ def plot_ari(metrics: pd.DataFrame) -> None:
     if sub.empty:
         return
 
-    baselines = ["gmm_aic_best_label"]
+    baselines = ["gmm_aicc_best_label"]
     sub = sub[sub["baseline"].isin(baselines)]
 
     import matplotlib.pyplot as plt  # type: ignore[no-redef]
@@ -174,7 +174,7 @@ def plot_ari(metrics: pd.DataFrame) -> None:
         x = range(len(pivot.index))
         width = 0.25
         offsets = {
-            "gmm_aic_best_label": 0.0,
+            "gmm_aicc_best_label": 0.0,
         }
 
         for baseline in baselines:
@@ -320,7 +320,7 @@ def plot_anova_subjects_numeric(anova_df: pd.DataFrame) -> None:
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     subject_outcomes = {"S1", "S2", "S3", "S5", "S6"}
-    baselines = ["gmm_aic_best_label"]
+    baselines = ["gmm_aicc_best_label"]
 
     sub = anova_df[anova_df["outcome"].isin(subject_outcomes)]
     sub = sub[sub["cluster_label"].isin(baselines)]
@@ -372,7 +372,7 @@ def plot_anova_subjects_numeric_by_outcome(anova_df: pd.DataFrame) -> None:
     figures_dir.mkdir(parents=True, exist_ok=True)
 
     subject_outcomes = ["S1", "S2", "S3", "S5", "S6"]
-    baselines = ["gmm_aic_best_label"]
+    baselines = ["gmm_aicc_best_label"]
 
     sub = anova_df[anova_df["outcome"].isin(subject_outcomes)]
     sub = sub[sub["cluster_label"].isin(baselines)]
@@ -393,7 +393,7 @@ def plot_anova_subjects_numeric_by_outcome(anova_df: pd.DataFrame) -> None:
     x = range(len(subject_outcomes))
     width = 0.35
     offsets = {
-        "gmm_aic_best_label": 0.0,
+        "gmm_aicc_best_label": 0.0,
     }
 
     handles = []
@@ -550,12 +550,12 @@ def plot_mean_eta_comparison(anova_df: pd.DataFrame) -> None:
     results = []
 
     # 1. Numeric Baseline
-    # template="GLOBAL", cluster_label="gmm_aic_best_label"
-    num_mask = (df_sub["template"] == "GLOBAL") & (df_sub["cluster_label"] == "gmm_aic_best_label")
+    # template="GLOBAL", cluster_label="gmm_aicc_best_label"
+    num_mask = (df_sub["template"] == "GLOBAL") & (df_sub["cluster_label"] == "gmm_aicc_best_label")
     if num_mask.any():
         mean_eta = df_sub.loc[num_mask, "eta_squared"].mean()
         results.append({
-            "Label": "Numeric (GMM-AIC)",
+            "Label": "Numeric (GMM-AICc)",
             "Type": "Numeric Baseline",
             "Mean_Eta_Squared": mean_eta
         })

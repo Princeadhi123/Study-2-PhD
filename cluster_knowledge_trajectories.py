@@ -707,8 +707,9 @@ def gmm_bic_aic_grid(
     covariance_types=("full", "diag", "tied", "spherical"),
 ) -> Tuple[pd.DataFrame, Dict, Dict]:
     rows = []
-    best_bic = {"k": None, "covariance_type": None, "bic": np.inf, "aic": np.inf}
-    best_aic = {"k": None, "covariance_type": None, "bic": np.inf, "aic": np.inf}
+    best_bic = {"k": None, "covariance_type": None, "bic": np.inf, "aic": np.inf, "aicc": np.inf}
+    best_aic = {"k": None, "covariance_type": None, "bic": np.inf, "aic": np.inf, "aicc": np.inf}
+    best_aicc = {"k": None, "covariance_type": None, "bic": np.inf, "aic": np.inf, "aicc": np.inf}
     for k in k_range:
         for cov in covariance_types:
             try:
@@ -743,9 +744,11 @@ def gmm_bic_aic_grid(
                     best_bic = {"k": int(k), "covariance_type": cov, "bic": bic, "aic": aic, "aicc": aicc}
                 if aic < best_aic["aic"]:
                     best_aic = {"k": int(k), "covariance_type": cov, "bic": bic, "aic": aic, "aicc": aicc}
+                if aicc < best_aicc["aicc"]:
+                    best_aicc = {"k": int(k), "covariance_type": cov, "bic": bic, "aic": aic, "aicc": aicc}
             except Exception:
                 continue
-    return pd.DataFrame(rows), best_bic, best_aic
+    return pd.DataFrame(rows), best_bic, best_aic, best_aicc
 
 
 def _find_elbow_index(y: np.ndarray) -> int:
@@ -1023,6 +1026,7 @@ def write_report(report_path: Path, summary: Dict):
     br = summary.get("birch", {})
     gm_bic = summary.get("gmm_bic_best", {})
     gm_aic = summary.get("gmm_aic_best", {})
+    gm_aicc = summary.get("gmm_aicc_best", {})
     best_overall = summary.get("best_overall", {})
     lines.append("KMeans\n")
     lines.append(f"  best_k: {km.get('k')}\n")
@@ -1044,15 +1048,16 @@ def write_report(report_path: Path, summary: Dict):
     lines.append(f"  covariance_type: {gm.get('covariance_type')}\n")
     lines.append(f"  silhouette: {gm.get('sil')}\n\n")
 
-    if gm_bic or gm_aic:
+    if gm_bic or gm_aic or gm_aicc:
         lines.append("GMM model selection (information criteria and internal validity)\n")
         if gm_bic:
             lines.append(
-                "  best_by_BIC: k={k}, cov={cov}, BIC={bic}, AIC={aic}, silhouette={sil}, CH={ch}, DB={db}\n".format(
+                "  best_by_BIC: k={k}, cov={cov}, BIC={bic}, AIC={aic}, AICc={aicc}, silhouette={sil}, CH={ch}, DB={db}\n".format(
                     k=gm_bic.get("k"),
                     cov=gm_bic.get("covariance_type"),
                     bic=gm_bic.get("bic"),
                     aic=gm_bic.get("aic"),
+                    aicc=gm_bic.get("aicc"),
                     sil=gm_bic.get("sil"),
                     ch=gm_bic.get("ch"),
                     db=gm_bic.get("db"),
@@ -1060,14 +1065,28 @@ def write_report(report_path: Path, summary: Dict):
             )
         if gm_aic:
             lines.append(
-                "  best_by_AIC: k={k}, cov={cov}, BIC={bic}, AIC={aic}, silhouette={sil}, CH={ch}, DB={db}\n".format(
+                "  best_by_AIC: k={k}, cov={cov}, BIC={bic}, AIC={aic}, AICc={aicc}, silhouette={sil}, CH={ch}, DB={db}\n".format(
                     k=gm_aic.get("k"),
                     cov=gm_aic.get("covariance_type"),
                     bic=gm_aic.get("bic"),
                     aic=gm_aic.get("aic"),
+                    aicc=gm_aic.get("aicc"),
                     sil=gm_aic.get("sil"),
                     ch=gm_aic.get("ch"),
                     db=gm_aic.get("db"),
+                )
+            )
+        if gm_aicc:
+            lines.append(
+                "  best_by_AICc: k={k}, cov={cov}, BIC={bic}, AIC={aic}, AICc={aicc}, silhouette={sil}, CH={ch}, DB={db}\n".format(
+                    k=gm_aicc.get("k"),
+                    cov=gm_aicc.get("covariance_type"),
+                    bic=gm_aicc.get("bic"),
+                    aic=gm_aicc.get("aic"),
+                    aicc=gm_aicc.get("aicc"),
+                    sil=gm_aicc.get("sil"),
+                    ch=gm_aicc.get("ch"),
+                    db=gm_aicc.get("db"),
                 )
             )
         lines.append("\n")
@@ -1151,7 +1170,7 @@ def main():
     _save_line_plot(br_curve, "K", "silhouette", "Birch silhouette vs K", figures_dir / "birch" / "birch_silhouette_vs_k.png")
 
     # GMM information-criteria diagnostics (BIC/AIC/AICc)
-    gm_bic_df, gm_bic_best, gm_aic_best = gmm_bic_aic_grid(Xs, k_range=range(2, 11))
+    gm_bic_df, gm_bic_best, gm_aic_best, gm_aicc_best = gmm_bic_aic_grid(Xs, k_range=range(2, 11))
     gm_bic_df.to_csv(model_results_dir / "gmm_model_selection.csv", index=False)
     _save_line_plot_hue(gm_bic_df, "K", "bic", "covariance_type", "GMM BIC vs K", figures_dir / "gmm" / "BIC" / "gmm_bic_vs_k.png")
     _save_line_plot_hue(gm_bic_df, "K", "aic", "covariance_type", "GMM AIC vs K", figures_dir / "gmm" / "AIC" / "gmm_aic_vs_k.png")
@@ -1253,6 +1272,49 @@ def main():
         gm_aic_best["ch"] = None
         gm_aic_best["db"] = None
 
+    try:
+        _aicc_k = gm_aicc_best.get("k")
+        _aicc_cov = gm_aicc_best.get("covariance_type")
+        if _aicc_k is not None and _aicc_cov is not None:
+            _gm_aicc_model = GaussianMixture(
+                n_components=int(_aicc_k),
+                covariance_type=_aicc_cov,
+                random_state=42,
+                n_init=5,
+            )
+            _gm_aicc_model.fit(Xs)
+            gmm_aicc_best_labels = _gm_aicc_model.predict(Xs)
+            # Internal validity scores for the AICc-selected GMM model.
+            try:
+                if len(np.unique(gmm_aicc_best_labels)) > 1:
+                    gm_aicc_best["sil"] = float(
+                        silhouette_score(Xs, gmm_aicc_best_labels)
+                    )
+                    gm_aicc_best["ch"] = float(
+                        calinski_harabasz_score(Xs, gmm_aicc_best_labels)
+                    )
+                    gm_aicc_best["db"] = float(
+                        davies_bouldin_score(Xs, gmm_aicc_best_labels)
+                    )
+                else:
+                    gm_aicc_best["sil"] = -1.0
+                    gm_aicc_best["ch"] = None
+                    gm_aicc_best["db"] = None
+            except Exception:
+                gm_aicc_best["sil"] = None
+                gm_aicc_best["ch"] = None
+                gm_aicc_best["db"] = None
+        else:
+            gmm_aicc_best_labels = np.full(len(Xs), -1)
+            gm_aicc_best["sil"] = None
+            gm_aicc_best["ch"] = None
+            gm_aicc_best["db"] = None
+    except Exception:
+        gmm_aicc_best_labels = np.full(len(Xs), -1)
+        gm_aicc_best["sil"] = None
+        gm_aicc_best["ch"] = None
+        gm_aicc_best["db"] = None
+
     # Determine best overall clustering by silhouette across algorithms
     best_overall_algo = None
     best_overall_sil = -1.0
@@ -1287,6 +1349,7 @@ def main():
         "gmm_label": gm_labels,
         "gmm_bic_best_label": gmm_bic_best_labels,
         "gmm_aic_best_label": gmm_aic_best_labels,
+        "gmm_aicc_best_label": gmm_aicc_best_labels,
     }
     if best_overall_labels is not None:
         clusters_dict["best_overall_label"] = best_overall_labels
@@ -1511,6 +1574,7 @@ def main():
         "gmm": gm_best,
         "gmm_bic_best": gm_bic_best,
         "gmm_aic_best": gm_aic_best,
+        "gmm_aicc_best": gm_aicc_best,
         "best_overall": best_overall_summary,
     }
     write_report(report_out, summary)

@@ -167,8 +167,8 @@ def main() -> None:
     nar_clusters = pd.read_csv(narrative_clusters_path)
     narratives = pd.read_csv(narratives_path)
 
-    # Include both BIC- and AIC-based numeric GMM labels for comparison.
-    base = stud_clusters[["IDCode", "gmm_bic_best_label", "gmm_aic_best_label"]].merge(
+    # Include both BIC-, AIC-, and AICc-based numeric GMM labels for comparison.
+    base = stud_clusters[["IDCode", "gmm_bic_best_label", "gmm_aic_best_label", "gmm_aicc_best_label"]].merge(
         nar_clusters[["IDCode", "narrative_best_label"]], on="IDCode", how="inner"
     )
     base = base.merge(narratives[["IDCode", "narrative_text"]], on="IDCode", how="left")
@@ -194,6 +194,14 @@ def main() -> None:
     overlap_aic.to_csv(overlap_aic_path)
 
     ari_aic = float(adjusted_rand_score(base["gmm_aic_best_label"], base["narrative_best_label"]))
+
+    # Overlap and ARI for AICc-based numeric GMM vs narrative GMM.
+    overlap_aicc = pd.crosstab(base["gmm_aicc_best_label"], base["narrative_best_label"])
+    overlap_aicc_filename = make_versioned_filename("gmm_aicc_vs_narrative_overlap.csv")
+    overlap_aicc_path = OUTPUT_DIR / overlap_aicc_filename
+    overlap_aicc.to_csv(overlap_aicc_path)
+
+    ari_aicc = float(adjusted_rand_score(base["gmm_aicc_best_label"], base["narrative_best_label"]))
 
     metric_descriptions = {
         "adjusted_rand_index": (
@@ -227,6 +235,13 @@ def main() -> None:
             "value": ari_aic,
             "description": metric_descriptions["adjusted_rand_index"],
         },
+        {
+            "template_version": NARRATIVE_TEMPLATE_VERSION.upper(),
+            "baseline": "gmm_aicc_best_label",
+            "metric": "adjusted_rand_index",
+            "value": ari_aicc,
+            "description": metric_descriptions["adjusted_rand_index"],
+        },
     ]
 
     # Embedding-space internal indices for each clustering (numeric BIC, numeric AIC, narrative).
@@ -250,6 +265,7 @@ def main() -> None:
                     "IDCode",
                     "gmm_bic_best_label",
                     "gmm_aic_best_label",
+                    "gmm_aicc_best_label",
                     "narrative_best_label",
                 ]],
                 on="IDCode",
@@ -264,6 +280,7 @@ def main() -> None:
                     "narrative_best_label": emb_base["narrative_best_label"].to_numpy(),
                     "gmm_bic_best_label": emb_base["gmm_bic_best_label"].to_numpy(),
                     "gmm_aic_best_label": emb_base["gmm_aic_best_label"].to_numpy(),
+                    "gmm_aicc_best_label": emb_base["gmm_aicc_best_label"].to_numpy(),
                 }
 
                 for baseline_name, labels in label_sets.items():
@@ -340,7 +357,7 @@ def main() -> None:
         # Treat cluster-label columns from the marks file as labels, not as marks to be averaged.
         # Exclude them from numeric_cols so that the base gmm_bic_best_label column is preserved
         # and not duplicated/renamed during the merge.
-        label_cols = {"gmm_bic_best_label", "narrative_best_label"}
+        label_cols = {"gmm_bic_best_label", "narrative_best_label", "gmm_aic_best_label", "gmm_aicc_best_label"}
         numeric_cols = [
             c
             for c in marks_df.columns
@@ -361,7 +378,7 @@ def main() -> None:
 
             # One-way ANOVA and effect sizes for marks by cluster label.
             anova_rows: list[dict] = []
-            cluster_labels = ("gmm_bic_best_label", "gmm_aic_best_label", "narrative_best_label")
+            cluster_labels = ("gmm_bic_best_label", "gmm_aic_best_label", "gmm_aicc_best_label", "narrative_best_label")
 
             for cluster_col in cluster_labels:
                 if cluster_col not in merged.columns:
@@ -432,7 +449,7 @@ def main() -> None:
                 # --- Split ANOVA outputs into narrative (template-specific) and
                 # numeric (template-independent) parts.
                 numeric_mask = anova_df["cluster_label"].isin(
-                    ["gmm_bic_best_label", "gmm_aic_best_label"]
+                    ["gmm_bic_best_label", "gmm_aic_best_label", "gmm_aicc_best_label"]
                 )
                 narrative_mask = anova_df["cluster_label"] == "narrative_best_label"
 
@@ -501,6 +518,7 @@ def main() -> None:
 
     print(f"Saved BIC overlap table to {overlap_bic_path}")
     print(f"Saved AIC overlap table to {overlap_aic_path}")
+    print(f"Saved AICc overlap table to {overlap_aicc_path}")
     print(f"Saved ARI metrics to {ari_path}")
     if MARKS_WITH_CLUSTERS_PATH.exists():
         print("Saved marks summaries by cluster if numeric marks were found.")

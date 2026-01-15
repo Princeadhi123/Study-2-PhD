@@ -89,8 +89,8 @@ def main():
                         db = v
                 
                 # External Validity (ARI vs Numeric Clusters)
-                # Using AIC baseline to match our AICc selection philosophy
-                elif m == "adjusted_rand_index" and b == "gmm_aic_best_label":
+                # Using AICc baseline to match our AICc selection philosophy
+                elif m == "adjusted_rand_index" and b == "gmm_aicc_best_label":
                     ari = v
         else:
             print(f"  Missing metrics file: {metrics_file}")
