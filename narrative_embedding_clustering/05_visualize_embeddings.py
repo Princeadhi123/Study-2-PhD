@@ -598,23 +598,36 @@ def main() -> None:
     )
 
     # --- LDA projection (supervised by narrative clusters) ---
-    lda = LinearDiscriminantAnalysis(n_components=2)
     y = coords["narrative_best_label"].to_numpy()
-    X_lda = lda.fit_transform(X, y)
-    coords_lda = coords.copy()
-    coords_lda["dim1"] = X_lda[:, 0]
-    coords_lda["dim2"] = X_lda[:, 1]
+    # Remove any NaN labels if they exist
+    mask = ~np.isnan(y)
+    if not mask.all():
+        y = y[mask]
+        X_for_lda = X[mask]
+    else:
+        X_for_lda = X
 
-    _plot_scatter(
-        coords_lda,
-        color_col="narrative_best_label",
-        title="Narrative GMM-BIC clusters (embedding LDA)",
-        filename=make_versioned_filename("embeddings_lda_narrative_clusters.png"),
-        x_col="dim1",
-        y_col="dim2",
-        x_label="LDA1 (narrative embeddings)",
-        y_label="LDA2 (narrative embeddings)",
-    )
+    n_classes = len(np.unique(y))
+    
+    if n_classes < 3:
+        print(f"Skipping LDA plot: Requires at least 3 clusters for 2D projection (found {n_classes}).")
+    else:
+        lda = LinearDiscriminantAnalysis(n_components=2)
+        X_lda = lda.fit_transform(X_for_lda, y)
+        coords_lda = coords.copy()
+        coords_lda["dim1"] = X_lda[:, 0]
+        coords_lda["dim2"] = X_lda[:, 1]
+
+        _plot_scatter(
+            coords_lda,
+            color_col="narrative_best_label",
+            title="Narrative GMM-BIC clusters (embedding LDA)",
+            filename=make_versioned_filename("embeddings_lda_narrative_clusters.png"),
+            x_col="dim1",
+            y_col="dim2",
+            x_label="LDA1 (narrative embeddings)",
+            y_label="LDA2 (narrative embeddings)",
+        )
 
 
 if __name__ == "__main__":
