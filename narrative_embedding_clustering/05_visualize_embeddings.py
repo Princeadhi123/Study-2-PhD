@@ -3,9 +3,12 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
+from sklearn.metrics import silhouette_score
 
 from config import OUTPUT_DIR, STUDENT_CLUSTERS_PATH, make_versioned_filename, DERIVED_FEATURES_PATH
 
@@ -98,59 +101,18 @@ def _plot_scatter(
     print(f"Saved {title} plot to {out_path}")
 
 
-def _plot_pca_loadings(coords_pca: pd.DataFrame) -> None:
-    """Calculates and plots the correlation of PC1/PC2 with numeric features."""
-    if not DERIVED_FEATURES_PATH.exists():
-        print(f"Derived features not found at {DERIVED_FEATURES_PATH}, skipping PCA loadings heatmap.")
-        return
-
-    # Load numeric features
-    df_features = pd.read_csv(DERIVED_FEATURES_PATH)
+def _enforce_pca_orientation(coords_pca: pd.DataFrame, df_features: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Aligns PCA signs to ensure consistent interpretation:
+    - PC1: High Performance (Accuracy) -> Negative values
+    - PC2: High Variance (Response Variance) -> Negative values
+    - PC3: Slow Speed (Avg Response Time) -> Positive values
     
-    # Recalculate derived columns (consistent with 01_build_narratives)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        df_features["accuracy"] = df_features["total_correct"] / df_features["n_items"].replace(0, np.nan)
-        std_rt = np.sqrt(df_features["var_rt"].clip(lower=0.0))
-        df_features["rt_cv"] = std_rt / df_features["avg_rt"].replace(0, np.nan)
-
-    # Select relevant numeric columns
-    numeric_cols = [
-        "total_correct",
-        "total_incorrect",
-        "accuracy",
-        "consecutive_correct_rate",
-        "longest_incorrect_streak",
-        "response_variance",
-        "longest_correct_streak",
-        "var_rt",
-        "rt_cv",
-        "avg_rt"
-    ]
-    
-    # Merge with PCA coordinates
-    # coords_pca has "IDCode", "dim1" (PC1), "dim2" (PC2), potentially "dim3" (PC3)
-    pca_cols = [c for c in coords_pca.columns if c.startswith("dim")]
-    merged = coords_pca.merge(df_features[["IDCode"] + numeric_cols], on="IDCode", how="inner")
-    
-    if merged.empty:
-        return
-
-    # Compute correlations (loadings)
-    cols_to_corr = pca_cols + numeric_cols
-    correlations = merged[cols_to_corr].corr(method="spearman")
-    loadings = correlations.loc[numeric_cols, pca_cols]
-    
-    # Rename PC columns dynamically
-    pc_names = [f"PC{i+1}" for i in range(len(pca_cols))]
-    loadings.columns = pc_names
-    
-    # Drop rows that are all NaN (e.g. n_items if constant)
-    loadings = loadings.dropna(how="all")
-
-    # Transpose for horizontal representation (PCs on Y-axis, Features on X-axis)
-    loadings = loadings.T
-
-    # Rename columns for better readability
+    Returns:
+        coords_pca: The dataframe with potentially flipped PC columns
+        loadings: The correlation matrix (transposed for plotting)
+    """
+    # Feature Map (Internal Name -> Display Name)
     feature_map = {
         "total_correct": "Total Correct",
         "total_incorrect": "Total Incorrect",
@@ -163,9 +125,71 @@ def _plot_pca_loadings(coords_pca: pd.DataFrame) -> None:
         "rt_cv": "RT Coeff. Variation",
         "avg_rt": "Avg Response Time"
     }
-    loadings = loadings.rename(columns=feature_map)
 
-    # Plot Heatmap
+    # Merge PCA coords with features
+    valid_cols = [c for c in feature_map.keys() if c in df_features.columns]
+    pca_cols = [c for c in coords_pca.columns if c.startswith("dim")]
+    
+    merged = coords_pca.merge(df_features[["IDCode"] + valid_cols], on="IDCode", how="inner")
+    
+    if merged.empty:
+        print("Warning: No matching IDs found for feature correlation. PCA orientation not enforced.")
+        return coords_pca, pd.DataFrame()
+
+    # Calculate initial correlations
+    cols_to_corr = pca_cols + valid_cols
+    correlations = merged[cols_to_corr].corr(method="pearson")
+    
+    # We only need rows=valid_cols, cols=pca_cols
+    raw_loadings = correlations.loc[valid_cols, pca_cols]
+
+    # Check Anchors and Flip if needed
+    # PC1 Anchor: Accuracy should be Negative ( < 0 )
+    if "dim1" in pca_cols and "accuracy" in valid_cols:
+        if raw_loadings.loc["accuracy", "dim1"] > 0:
+            print("  -> Flipping PC1 sign (forcing High Accuracy to Negative)")
+            coords_pca["dim1"] *= -1
+            raw_loadings["dim1"] *= -1
+
+    # PC2 Anchor: Response Variance should be Negative ( < 0 )
+    if "dim2" in pca_cols and "response_variance" in valid_cols:
+        if raw_loadings.loc["response_variance", "dim2"] > 0:
+            print("  -> Flipping PC2 sign (forcing High Variance to Negative)")
+            coords_pca["dim2"] *= -1
+            raw_loadings["dim2"] *= -1
+            
+    # PC3 Anchor: Avg Response Time should be Positive ( > 0 )
+    if "dim3" in pca_cols and "avg_rt" in valid_cols:
+        if raw_loadings.loc["avg_rt", "dim3"] < 0:
+            print("  -> Flipping PC3 sign (forcing Slow RT to Positive)")
+            coords_pca["dim3"] *= -1
+            raw_loadings["dim3"] *= -1
+
+    # Format loadings for plotting (Rename cols/rows)
+    pc_names = [f"PC{i+1}" for i in range(len(pca_cols))]
+    raw_loadings.columns = pc_names
+    
+    # Transpose: PCs on Y, Features on X
+    final_loadings = raw_loadings.T
+    final_loadings = final_loadings.rename(columns=feature_map)
+
+    # Reorder columns
+    desired_order = [
+        "Total Correct", "Total Incorrect", "Accuracy", "Consec. Correct Rate",
+        "Max Incorrect Streak", "Response Variance", "Max Correct Streak",
+        "RT Variance", "RT Coeff. Variation", "Avg Response Time"
+    ]
+    plot_cols = [c for c in desired_order if c in final_loadings.columns]
+    final_loadings = final_loadings[plot_cols]
+    
+    return coords_pca, final_loadings
+
+
+def _plot_pca_heatmap(loadings: pd.DataFrame) -> None:
+    """Plots the pre-calculated and aligned loadings heatmap."""
+    if loadings.empty:
+        return
+
     try:
         import matplotlib.pyplot as plt
         import seaborn as sns
@@ -173,8 +197,7 @@ def _plot_pca_loadings(coords_pca: pd.DataFrame) -> None:
         print("seaborn not installed, skipping heatmap.")
         return
 
-    # Wider figure for horizontal layout
-    fig, ax = plt.subplots(figsize=(12, 4))
+    fig, ax = plt.subplots(figsize=(14, 5))
     sns.heatmap(
         loadings, 
         annot=True, 
@@ -185,11 +208,10 @@ def _plot_pca_loadings(coords_pca: pd.DataFrame) -> None:
         ax=ax, 
         fmt=".2f",
         linewidths=0.5,
-        cbar_kws={"label": "Spearman Correlation"}
+        cbar_kws={"label": "Correlation"}
     )
     ax.set_title("PCA Loadings: Feature Contributions to Axes", fontsize=14, pad=15)
     
-    # Rotate x-axis labels for readability
     plt.xticks(rotation=45, ha="right")
     plt.yticks(rotation=0)
 
@@ -204,15 +226,23 @@ def _plot_pca_loadings(coords_pca: pd.DataFrame) -> None:
 
 
 def _plot_narrative_k_selection() -> None:
-    results_filename = make_versioned_filename("model_results_narrative.csv")
-    results_path = OUTPUT_DIR / results_filename
-    if not results_path.exists():
+    # Load the latest model results
+    pattern = "model_results_narrative*.csv"
+    files = sorted(OUTPUT_DIR.glob(pattern), key=lambda f: f.stat().st_mtime, reverse=True)
+    if not files:
+        print("No narrative model results found. Run 03_cluster_embeddings.py first.")
         return
+    
+    latest_file = files[0]
+    print(f"Loading model results from: {latest_file.name}")
+    df = pd.read_csv(latest_file)
+    
+    if "bic" in df.columns:
+        _plot_metric_selection(df, "bic", "BIC", "bic_vs_k")
+    
+    if "aicc" in df.columns:
+        _plot_metric_selection(df, "aicc", "AICc", "aicc_vs_k")
 
-    df = pd.read_csv(results_path)
-    required_cols = {"K", "covariance_type", "bic"}
-    if not required_cols.issubset(df.columns) or df.empty:
-        return
 
 def _plot_metric_selection(df: pd.DataFrame, metric: str, title_suffix: str, filename_suffix: str) -> None:
     try:
@@ -262,25 +292,6 @@ def _plot_metric_selection(df: pd.DataFrame, metric: str, title_suffix: str, fil
     print(f"Saved narrative GMM {metric.upper()} plot to {out_path}")
 
 
-def _plot_narrative_k_selection() -> None:
-    # Load the latest model results
-    pattern = "model_results_narrative*.csv"
-    files = sorted(OUTPUT_DIR.glob(pattern), key=lambda f: f.stat().st_mtime, reverse=True)
-    if not files:
-        print("No narrative model results found. Run 03_cluster_embeddings.py first.")
-        return
-    
-    latest_file = files[0]
-    print(f"Loading model results from: {latest_file.name}")
-    df = pd.read_csv(latest_file)
-    
-    if "bic" in df.columns:
-        _plot_metric_selection(df, "bic", "BIC", "bic_vs_k")
-    
-    if "aicc" in df.columns:
-        _plot_metric_selection(df, "aicc", "AICc", "aicc_vs_k")
-
-
 def main() -> None:
     _plot_narrative_k_selection()
     try:
@@ -292,9 +303,10 @@ def main() -> None:
         
     except Exception as e:
         print(f"Visualization error: {e}")
+        return
 
 
-    # --- PCA projection (baseline, with 3 components to capture Timing) ---
+    # --- PCA projection (3 components to capture Performance, Intensity, Timing) ---
     pca = PCA(n_components=3, random_state=42)
     X_pca = pca.fit_transform(X)
     coords_pca = coords.copy()
@@ -302,54 +314,96 @@ def main() -> None:
     coords_pca["dim2"] = X_pca[:, 1]
     coords_pca["dim3"] = X_pca[:, 2]
 
-    # Plot PCA Loadings Heatmap (Correlation with Numeric Features)
-    _plot_pca_loadings(coords_pca)
+    # Calculate Variance Explained
+    var_exp = pca.explained_variance_ratio_
+    print(f"PCA Variance Explained: PC1={var_exp[0]:.1%}, PC2={var_exp[1]:.1%}, PC3={var_exp[2]:.1%}")
 
-    # Plot 1: Standard PC1 vs PC2 (Intensity vs Performance)
+    # --- Load Features and Enforce PCA Orientation ---
+    if DERIVED_FEATURES_PATH.exists():
+        df_features = pd.read_csv(DERIVED_FEATURES_PATH)
+        # Recalculate derived columns
+        with np.errstate(divide="ignore", invalid="ignore"):
+            df_features["accuracy"] = df_features["total_correct"] / df_features["n_items"].replace(0, np.nan)
+            std_rt = np.sqrt(df_features["var_rt"].clip(lower=0.0))
+            df_features["rt_cv"] = std_rt / df_features["avg_rt"].replace(0, np.nan)
+        
+        # Enforce consistent signs (e.g. PC1 = Low Perf, PC3 = Slow)
+        print("Checking PCA orientation against behavioral anchors...")
+        coords_pca, loadings = _enforce_pca_orientation(coords_pca, df_features)
+        
+        # Plot aligned heatmap
+        _plot_pca_heatmap(loadings)
+    else:
+        print("Derived features not found; skipping PCA alignment and heatmap.")
+
+    # Calculate 2D Silhouette Scores to identify the best view (using aligned coords)
+    labels = coords["narrative_best_label"]
+    # Re-extract numpy array from coords_pca because columns might have been flipped
+    X_pca_aligned = coords_pca[["dim1", "dim2", "dim3"]].values
+
+    sil_12 = silhouette_score(X_pca_aligned[:, [0, 1]], labels)
+    sil_13 = silhouette_score(X_pca_aligned[:, [0, 2]], labels)
+    sil_23 = silhouette_score(X_pca_aligned[:, [1, 2]], labels)
+
+    print(f"2D Silhouette Scores: PC1-PC2={sil_12:.3f}, PC1-PC3={sil_13:.3f}, PC2-PC3={sil_23:.3f}")
+
+    # Plot 1: Standard PC1 vs PC2 (Performance vs Intensity)
     _plot_scatter(
         coords_pca,
         color_col="narrative_best_label",
-        title="Narrative GMM-BIC clusters (PCA: Intensity vs Performance)",
+        title=f"Narrative Clusters: PC1 vs PC2 (Sil={sil_12:.2f})",
         filename=make_versioned_filename("embeddings_pca_PC1_vs_PC2.png"),
         x_col="dim1",
         y_col="dim2",
-        x_label="PC1 (Behavioral Intensity)",
-        y_label="PC2 (Academic Performance)",
+        x_label=f"PC1 ({var_exp[0]:.1%} var) - Performance/Competence",
+        y_label=f"PC2 ({var_exp[1]:.1%} var) - Behavioral Intensity",
     )
 
-    # Plot 2: PC2 vs PC3 (Performance vs Timing) - The "Cluster Separator"
+    # Plot 2: PC1 vs PC3 (Performance vs Consistency) - Often the BEST separator
     _plot_scatter(
         coords_pca,
         color_col="narrative_best_label",
-        title="Narrative GMM-BIC clusters (PCA: Performance vs Speed)",
+        title=f"Narrative Clusters: PC1 vs PC3 (Sil={sil_13:.2f})",
+        filename=make_versioned_filename("embeddings_pca_PC1_vs_PC3.png"),
+        x_col="dim1",
+        y_col="dim3",
+        x_label=f"PC1 ({var_exp[0]:.1%} var) - Performance/Competence",
+        y_label=f"PC3 ({var_exp[2]:.1%} var) - Speed & Consistency",
+    )
+    
+    # Plot 3: PC2 vs PC3 (Intensity vs Consistency)
+    _plot_scatter(
+        coords_pca,
+        color_col="narrative_best_label",
+        title=f"Narrative Clusters: PC2 vs PC3 (Sil={sil_23:.2f})",
         filename=make_versioned_filename("embeddings_pca_PC2_vs_PC3.png"),
         x_col="dim2",
         y_col="dim3",
-        x_label="PC2 (Academic Performance)",
-        y_label="PC3 (Speed & Consistency)",
+        x_label=f"PC2 ({var_exp[1]:.1%} var) - Behavioral Intensity",
+        y_label=f"PC3 ({var_exp[2]:.1%} var) - Speed & Consistency",
     )
 
     # Keep the numeric cluster comparisons on PC1/PC2 for reference
     _plot_scatter(
         coords_pca,
         color_col="gmm_bic_best_label",
-        title="Numeric GMM-BIC clusters (PCA: Intensity vs Performance)",
+        title="Numeric GMM-BIC clusters (PCA: PC1 vs PC2)",
         filename=make_versioned_filename("embeddings_pca_gmm_bic_clusters.png"),
         x_col="dim1",
         y_col="dim2",
-        x_label="PC1 (Behavioral Intensity)",
-        y_label="PC2 (Academic Performance)",
+        x_label="PC1 (Performance)",
+        y_label="PC2 (Intensity)",
     )
 
     _plot_scatter(
         coords_pca,
         color_col="gmm_aic_best_label",
-        title="Numeric GMM-AIC clusters (embedding PCA)",
+        title="Numeric GMM-AIC clusters (PCA: PC1 vs PC2)",
         filename=make_versioned_filename("embeddings_pca_gmm_aic_clusters.png"),
         x_col="dim1",
         y_col="dim2",
-        x_label="PC1 (narrative embeddings)",
-        y_label="PC2 (narrative embeddings)",
+        x_label="PC1 (Performance)",
+        y_label="PC2 (Intensity)",
     )
 
     # --- UMAP projection (narrative clusters only) ---
