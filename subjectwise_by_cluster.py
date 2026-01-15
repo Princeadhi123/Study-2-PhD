@@ -147,7 +147,7 @@ def run(marks_path: Path):
     base = Path(__file__).parent
     clusters_path = base / "diagnostics" / "student cluster labels" / "student_clusters.csv"
     dfc = pd.read_csv(clusters_path)
-    cluster_col = "gmm_bic_best_label"
+    cluster_col = "gmm_aicc_best_label"
     if cluster_col not in dfc.columns:
         raise ValueError(f"Missing '{cluster_col}' in {clusters_path}")
     id_clusters = "IDCode" if "IDCode" in dfc.columns else _detect_id_col(dfc)

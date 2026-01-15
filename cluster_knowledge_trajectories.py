@@ -1425,6 +1425,20 @@ def main():
 
     except Exception:
         pass
+
+    try:
+        aicc_k = gm_aicc_best.get("k")
+        aicc_cov = gm_aicc_best.get("covariance_type")
+        if aicc_k is not None and aicc_cov is not None:
+            pca_scatter(
+                Xs,
+                gmm_aicc_best_labels,
+                f"GMM (best by AICc: k={aicc_k}, cov={aicc_cov})",
+                figures_dir / "gmm" / "AICc" / "gmm_aicc_best_pca.png",
+            )
+
+    except Exception:
+        pass
     # t-SNE and UMAP for GMM best-by-BIC clusters
     try:
         bic_k = gm_bic_best.get("k")
