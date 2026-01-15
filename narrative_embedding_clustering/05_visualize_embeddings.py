@@ -13,7 +13,7 @@ from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.manifold import TSNE
 from sklearn.metrics import silhouette_score
 
-from config import OUTPUT_DIR, STUDENT_CLUSTERS_PATH, make_versioned_filename, DERIVED_FEATURES_PATH
+from config import OUTPUT_DIR, STUDENT_CLUSTERS_PATH, make_versioned_filename, DERIVED_FEATURES_PATH, NARRATIVE_TEMPLATE_VERSION, EMBEDDING_MODEL_NAME
 
 
 def _load_embeddings():
@@ -505,16 +505,18 @@ def main() -> None:
         y_label=f"PC3 ({var_exp[2]:.1%} var)",
     )
     
-    # Final Grouped Plot with Hulls
-    _plot_grouped_hull_scatter(
-        coords_pca,
-        x_col="dim1",
-        y_col="dim3",
-        x_label=f"PC1 ({var_exp[0]:.1%} var)",
-        y_label=f"PC3 ({var_exp[2]:.1%} var)",
-        title=f"Narrative Clusters: PC1 vs PC3",
-        filename=make_versioned_filename("embeddings_pca_PC1_vs_PC3_final_hulls.png")
-    )
+    # Final Grouped Plot with Hulls - ONLY for Template A + MiniLM
+    # The user requested this specific visualization only for this configuration
+    if NARRATIVE_TEMPLATE_VERSION == "A" and "MiniLM" in EMBEDDING_MODEL_NAME:
+        _plot_grouped_hull_scatter(
+            coords_pca,
+            x_col="dim1",
+            y_col="dim3",
+            x_label=f"PC1 ({var_exp[0]:.1%} var)",
+            y_label=f"PC3 ({var_exp[2]:.1%} var)",
+            title=f"Narrative Clusters: PC1 vs PC3",
+            filename=make_versioned_filename("embeddings_pca_PC1_vs_PC3_final_hulls.png")
+        )
     
     # Plot 3: PC2 vs PC3
     _plot_scatter(
