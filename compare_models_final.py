@@ -151,27 +151,30 @@ def main():
     # Normalize metrics to 0-1 score
     # Eta: Higher is better
     # Sil: Higher is better
+    # CH: Higher is better
     # DB: Lower is better -> Invert
     # ARI: Higher is better
     
     df_norm = final_df.copy()
     df_norm["Eta_Score"] = df_norm["Mean Eta^2"] / df_norm["Mean Eta^2"].max()
     df_norm["Sil_Score"] = df_norm["Silhouette (Cosine)"] / df_norm["Silhouette (Cosine)"].max()
+    df_norm["CH_Score"] = df_norm["Calinski-Harabasz"] / df_norm["Calinski-Harabasz"].max()
     df_norm["DB_Score"] = df_norm["Davies-Bouldin"].min() / df_norm["Davies-Bouldin"]
     df_norm["ARI_Score"] = df_norm["ARI (vs Numeric)"] / df_norm["ARI (vs Numeric)"].max()
     
     # Composite Score: 
     # 50% External Outcome (Eta)
-    # 40% Internal Quality (Sil + DB)
+    # 40% Internal Quality (Sil + DB + CH)
     # 10% External Alignment (ARI)
     df_norm["Composite"] = (0.5 * df_norm["Eta_Score"]) + \
-                           (0.2 * df_norm["Sil_Score"]) + \
-                           (0.2 * df_norm["DB_Score"]) + \
+                           (0.1333333333 * df_norm["Sil_Score"]) + \
+                           (0.1333333333 * df_norm["DB_Score"]) + \
+                           (0.1333333333 * df_norm["CH_Score"]) + \
                            (0.1 * df_norm["ARI_Score"])
     
     df_norm = df_norm.sort_values("Composite", ascending=False)
-    print("Scoring Weights: 50% Predictive (Eta), 40% Structural (Sil+DB), 10% Alignment (ARI)")
-    print(df_norm[["Template", "Model", "Composite", "Eta_Score", "Sil_Score", "DB_Score", "ARI_Score"]].to_string(index=False, float_format=lambda x: "{:.4f}".format(x)))
+    print("Scoring Weights: 50% Predictive (Eta), 40% Structural (Sil+DB+CH), 10% Alignment (ARI)")
+    print(df_norm[["Template", "Model", "Composite", "Eta_Score", "Sil_Score", "DB_Score", "CH_Score", "ARI_Score"]].to_string(index=False, float_format=lambda x: "{:.4f}".format(x)))
     
     winner = df_norm.iloc[0]
     print(f"\n🏆 THE WINNER IS: {winner['Template']} + {winner['Model']} 🏆")
