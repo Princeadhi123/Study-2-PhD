@@ -106,6 +106,18 @@ def build_narratives(df: pd.DataFrame, marks_df: pd.DataFrame | None = None) -> 
                 f"incorrect streak {streak_incorrect_cat} ({int(li)}); "
                 f"consecutive correct {cc_cat} ({cc:.2f})."
             )
+        elif template == "C":
+            # Pure variables and numbers, no qualitative words
+            narrative = (
+                f"n_items: {n_items}; "
+                f"accuracy: {acc:.4f}; "
+                f"avg_rt: {avg_rt:.4f}; "
+                f"var_rt: {var_rt:.4f}; "
+                f"rt_cv: {rt_cv:.4f}; "
+                f"longest_correct_streak: {int(lc)}; "
+                f"longest_incorrect_streak: {int(li)}; "
+                f"consecutive_correct_rate: {cc:.4f}"
+            )
         else:
             parts: list[str] = []
             parts.append(
