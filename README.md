@@ -5,7 +5,7 @@ This repository centres on a transformer-based sentence-embedding narrative pipe
 - Derive per-student behavioural features from item-level response data.
 - Run multiple clustering algorithms over these features (GMM, KMeans, etc.).
 - Build per-student narratives from numeric features (Templates A/B/C) and embed them with encoder-only transformers.
-- Cluster narrative embeddings with GMM (using BIC and AICc for model selection) and compare narrative clusters to numeric GMM clusters.
+- Cluster narrative embeddings with GMM (using **AICc** for model selection) and compare narrative clusters to numeric GMM clusters.
 - Link both numeric and narrative cluster memberships to subject-wise marks and visualise subject profiles by cluster (z-mean heatmaps).
 
 The analysis is therefore organised in two layers:
@@ -20,10 +20,10 @@ The analysis is therefore organised in two layers:
 At the top level of `Study-2` you will typically have:
 
 - **`narrative_embedding_clustering/`**  
-  Main subproject. Builds per-student narratives from numeric features, computes transformer embeddings, runs narrative GMM clustering (BIC/AICc), compares narrative vs numeric clusters (generating subject-wise heatmaps), and generates cross-template metrics and ANOVA plots.
+  Main subproject. Builds per-student narratives from numeric features, computes transformer embeddings, runs narrative GMM clustering (AICc), compares narrative vs numeric clusters (generating subject-wise heatmaps), and generates cross-template metrics and ANOVA plots.
 
 - **`cluster_knowledge_trajectories.py`**  
-  Numeric baseline pipeline. Reads an itemwise CSV, computes per-student features, runs clustering, evaluates models (including AICc for GMM), and writes diagnostics + figures that feed into the narrative pipeline.
+  Numeric baseline pipeline. Reads an itemwise CSV, computes per-student features, runs clustering, evaluates models (focusing on **AICc** for GMM), and writes diagnostics + figures that feed into the narrative pipeline.
 
 - **`subjectwise_by_cluster.py`**  
   Post-hoc numeric analysis. Merges student cluster labels with an Excel file of subject-wise marks and produces cluster-by-subject profiles; also feeds marks into Template C narratives and narrative ANOVA.
@@ -38,12 +38,12 @@ At the top level of `Study-2` you will typically have:
 - **`diagnostics/`** *(created by the numeric baseline + subjectwise scripts; reused by the narrative pipeline)*  
   - `cluster input features/` – derived per-student features and merged marks+clusters.  
   - `student cluster labels/` – cluster labels per student for each clustering method.  
-  - `model results/` – numeric diagnostics for clustering model sweeps (e.g. silhouette vs K, GMM BIC/AIC/AICc grid).  
+  - `model results/` – numeric diagnostics for clustering model sweeps (e.g. silhouette vs K, GMM AICc grid).  
   - `cluster validity/` – internal and external cluster validity metrics.
 
 - **`figures/`** *(created by the numeric baseline + subjectwise scripts; reused by the narrative pipeline)*  
   Subfolders for each algorithm and analysis, for example:  
-  - `gmm/BIC/`, `gmm/AIC/`  
+  - `gmm/AIC/` (containing AICc plots)  
   - `subjectwise by cluster/`
 
 - **`.gitignore`** – Git ignore rules.
@@ -116,7 +116,7 @@ python cluster_knowledge_trajectories.py
 It will:
 1. Compute per-student features (accuracy, response times, streaks, etc.).
 2. Standardise features.
-3. Run clustering: KMeans, Agglomerative, Birch, GMM (with BIC, AIC, and **AICc** selection), DBSCAN.
+3. Run clustering: KMeans, Agglomerative, Birch, GMM (with **AICc** selection), DBSCAN.
 4. Compute internal/external validity metrics.
 5. Generate figures (PCA, silhouettes, heatmaps).
 
@@ -134,10 +134,8 @@ python cluster_knowledge_trajectories.py path\to\your_itemwise.csv
 
 Under `diagnostics/`:
 - **`student cluster labels/student_clusters.csv`**:
-  - `gmm_bic_best_label`
-  - `gmm_aic_best_label`
-  - **`gmm_aicc_best_label`** (Corrected AIC, often preferred for smaller samples)
-  - ...and others.
+  - **`gmm_aicc_best_label`** (Corrected AIC, the primary selected model for small samples)
+  - `kmeans_label`, etc.
 
 ### 5.2. Model sweeps and diagnostics
 
@@ -145,8 +143,8 @@ Under `diagnostics/`:
 
 ### 5.3. Figures
 
-- **GMM AICc**: The pipeline generates specific plots for the AICc-selected model if distinct, including PCA scatter plots.
-- **Cluster profiles**: `gmm/BIC/gmm_bic_feature_zmean_by_cluster.png` (and similarly for AICc models).
+- **GMM AICc**: The pipeline generates specific plots for the AICc-selected model, including PCA scatter plots.
+- **Cluster profiles**: `gmm/AIC/gmm_aic_feature_zmean_by_cluster.png` (representing the AICc model).
 
 ---
 
@@ -159,7 +157,7 @@ python subjectwise_by_cluster.py
 ```
 
 Outputs in `figures/subjectwise by cluster/`:
-- **`subject_zmean_by_cluster.png`**: Heatmap of z-standardised subject scores by cluster (defaults to using `gmm_aicc_best_label` logic where applicable).
+- **`subject_zmean_by_cluster.png`**: Heatmap of z-standardised subject scores by cluster (uses **`gmm_aicc_best_label`**).
 - **`subject_radar_all_clusters.png`**: Radar plot comparing subject profiles.
 
 ---
@@ -168,7 +166,7 @@ Outputs in `figures/subjectwise by cluster/`:
 
 ### 7.1. Aim
 
-Use encoder-only transformer models to embed per-student narratives, cluster them with GMM (selecting via BIC/AICc), and compare these narrative clusters to the numeric GMM baselines and subject marks.
+Use encoder-only transformer models to embed per-student narratives, cluster them with GMM (selecting via **AICc**), and compare these narrative clusters to the numeric GMM baselines and subject marks.
 
 ### 7.2. Scripts
 
@@ -179,17 +177,17 @@ Use encoder-only transformer models to embed per-student narratives, cluster the
   Encodes narratives into dense embeddings.
 
 - **`03_cluster_embeddings.py`**  
-  Fits GMMs over a range of K. Computes **BIC, AIC, and AICc**. Selects the best models and saves labels to `narrative_clusters.csv`.
+  Fits GMMs over a range of K. Computes BIC, AIC, and **AICc**. Selects the best models (focusing on AICc) and saves labels to `narrative_clusters.csv`.
 
 - **`04_compare_with_gmm_bic.py`**  
-  The core comparison script.
-  - Merges narrative clusters with numeric clusters (`gmm_bic_best_label`, `gmm_aicc_best_label`).
+  The core comparison script (despite the name, it handles AICc comparisons).
+  - Merges narrative clusters with numeric clusters (`gmm_aicc_best_label`).
   - Computes ARI (Adjusted Rand Index) between narrative and numeric clusters.
   - **Generates Subject-wise Z-Mean Heatmap**: Automatically produces `subject_zmean_by_narrative_cluster.png`, showing how narrative clusters map to actual subject performance (standardised).
   - Runs ANOVAs and saves effect sizes.
 
 - **`05_visualize_embeddings.py`**  
-  Produces PCA/t-SNE/UMAP plots of the embeddings, coloured by cluster.
+  Produces PCA plots of the embeddings, coloured by cluster.
 
 - **`06_run_all_models.py`**  
   Batch driver to run the full pipeline (01–05) for all templates (`A`, `B`, `C`) and models (`all-mpnet-base-v2`, `all-MiniLM-L6-v2`).
@@ -214,8 +212,8 @@ python 05_visualize_embeddings.py
 ```
 
 Outputs location: `narrative_embedding_clustering/outputs/template_<T>/<embedding_id>/`.
-- **Figures**: `figures/subject_zmean_by_narrative_cluster.png` (Subject Heatmap), PCA plots, etc.
-- **Metrics**: `gmm_vs_narrative_metrics.csv`.
+- **Figures**: `figures/subject_zmean_by_narrative_cluster.png` (Subject Heatmap), PCA plots.
+- **Metrics**: `gmm_vs_narrative_metrics.csv` (contains AICc overlap and ARI).
 
 ---
 
@@ -227,4 +225,4 @@ Outputs location: `narrative_embedding_clustering/outputs/template_<T>/<embeddin
 python compare_models_final.py
 ```
 
-This helps identify which template and embedding model combination yields the best balance of internal structure, agreement with numeric baselines, and predictive power for subject grades.
+This helps identify which template and embedding model combination yields the best balance of internal structure, agreement with numeric baselines (AICc), and predictive power for subject grades.
