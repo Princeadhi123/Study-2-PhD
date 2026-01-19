@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 
 # Configuration
-INPUT_FILE = Path("figures/final_model_comparison.csv")
+INPUT_FILE = Path("narrative_embedding_clustering/final result/final_model_comparison.csv")
 OUTPUT_FILE = Path("figures/final_model_comparison_heatmap.png")
 
 def normalize_column(series, invert=False):
@@ -64,7 +64,7 @@ def main():
     
     # Apply normalization logic
     for col in metrics:
-        invert = (col == 'Davies-Bouldin')
+        invert = ('Davies-Bouldin' in col)
         color_df[col] = normalize_column(annot_df[col], invert=invert)
 
     # Plotting - Compact Size for Paper (e.g., 1 column width)
