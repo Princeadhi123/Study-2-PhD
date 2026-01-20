@@ -5,8 +5,9 @@ from pathlib import Path
 import numpy as np
 
 # Configuration
-INPUT_FILE = Path("narrative_embedding_clustering/final result/final_model_comparison.csv")
-OUTPUT_FILE = Path("figures/final_model_comparison_heatmap.png")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+INPUT_FILE = PROJECT_ROOT / "narrative_embedding_clustering" / "final result" / "final_model_comparison.csv"
+OUTPUT_FILE = PROJECT_ROOT / "figures" / "final_model_comparison_heatmap.png"
 
 def normalize_column(series, invert=False):
     """Normalize a pandas series to 0-1 range. 
@@ -91,6 +92,7 @@ def main():
     plt.yticks(rotation=0, fontsize=9)
     
     plt.tight_layout(pad=0.5)
+    OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(OUTPUT_FILE, dpi=300, bbox_inches='tight')
     print(f"Heatmap saved to {OUTPUT_FILE}")
 

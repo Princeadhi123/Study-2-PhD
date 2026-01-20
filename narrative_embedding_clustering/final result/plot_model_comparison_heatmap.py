@@ -5,9 +5,10 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 
 # Configuration
-OUTPUT_DIR = Path("narrative_embedding_clustering/outputs")
-MARKS_PATH = Path("diagnostics/cluster input features/marks_with_clusters.csv")
-FIGURES_DIR = Path("figures")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+OUTPUT_DIR = PROJECT_ROOT / "narrative_embedding_clustering" / "outputs"
+MARKS_PATH = PROJECT_ROOT / "diagnostics" / "cluster input features" / "marks_with_clusters.csv"
+FIGURES_DIR = PROJECT_ROOT / "figures"
 
 MODELS = [
     ("Template A", "MPNet", OUTPUT_DIR / "template_A/all_mpnet_base_v2"),
@@ -119,18 +120,33 @@ def plot_heatmap(df):
 
     # Normalize (Max-based normalization)
     # We overwrite the columns with their normalized versions, but keep the original names
-    df_norm["Mean Eta^2\nScore"] = df_norm["Mean Eta^2\nScore"] / df_norm["Mean Eta^2\nScore"].max()
-    df_norm["Silhouette (Cosine)\nScore"] = df_norm["Silhouette (Cosine)\nScore"] / df_norm["Silhouette (Cosine)\nScore"].max()
-    df_norm["Calinski-Harabasz\nScore"] = df_norm["Calinski-Harabasz\nScore"] / df_norm["Calinski-Harabasz\nScore"].max()
+    eta_max = df_norm["Mean Eta^2\nScore"].max()
+    sil_max = df_norm["Silhouette (Cosine)\nScore"].max()
+    ch_max = df_norm["Calinski-Harabasz\nScore"].max()
+    ari_max = df_norm["ARI (vs Numeric)\nScore"].max()
+
+    df_norm["Mean Eta^2\nScore"] = df_norm["Mean Eta^2\nScore"] / eta_max if eta_max else 0
+    df_norm["Silhouette (Cosine)\nScore"] = df_norm["Silhouette (Cosine)\nScore"] / sil_max if sil_max else 0
+    df_norm["Calinski-Harabasz\nScore"] = df_norm["Calinski-Harabasz\nScore"] / ch_max if ch_max else 0
+
     # DB is lower-is-better
-    df_norm["Davies-Bouldin\nScore"] = df_norm["Davies-Bouldin\nScore"].min() / df_norm["Davies-Bouldin\nScore"]
-    df_norm["ARI (vs Numeric)\nScore"] = df_norm["ARI (vs Numeric)\nScore"] / df_norm["ARI (vs Numeric)\nScore"].max()
+    db_series = df_norm["Davies-Bouldin\nScore"].replace(0, np.nan)
+    db_min = db_series.min(skipna=True)
+    df_norm["Davies-Bouldin\nScore"] = (db_min / db_series) if (db_min and not np.isnan(db_min)) else 0
+    df_norm["Davies-Bouldin\nScore"] = df_norm["Davies-Bouldin\nScore"].replace([np.inf, -np.inf], np.nan).fillna(0)
+
+    df_norm["ARI (vs Numeric)\nScore"] = df_norm["ARI (vs Numeric)\nScore"] / ari_max if ari_max else 0
+
+    # Combine internal metrics into a single score (equal weights)
+    df_norm["Internal Score"] = (
+        df_norm["Silhouette (Cosine)\nScore"]
+        + df_norm["Calinski-Harabasz\nScore"]
+        + df_norm["Davies-Bouldin\nScore"]
+    ) / 3
     
     # Composite Score calculation
     df_norm["Composite"] = (0.5 * df_norm["Mean Eta^2\nScore"]) + \
-                           (0.1333333333 * df_norm["Silhouette (Cosine)\nScore"]) + \
-                           (0.1333333333 * df_norm["Davies-Bouldin\nScore"]) + \
-                           (0.1333333333 * df_norm["Calinski-Harabasz\nScore"]) + \
+                           (0.4 * df_norm["Internal Score"]) + \
                            (0.1 * df_norm["ARI (vs Numeric)\nScore"])
     
     # Prepare data for heatmap
@@ -145,9 +161,7 @@ def plot_heatmap(df):
     
     # Select columns to plot - Matching Raw Table Order + Composite
     cols_to_plot = [
-        "Silhouette (Cosine)\nScore", 
-        "Calinski-Harabasz\nScore", 
-        "Davies-Bouldin\nScore", 
+        "Internal Score",
         "ARI (vs Numeric)\nScore", 
         "Mean Eta^2\nScore", 
         "Composite"
@@ -167,8 +181,10 @@ def plot_heatmap(df):
     plt.ylabel("") # Hide "Label" label
     plt.xticks(rotation=30, ha='right', fontsize=9)
     plt.yticks(rotation=0, fontsize=9)
-    
-    plt.tight_layout(pad=0.5)
+
+    internal_note = "Internal Score = mean(Silhouette_norm, Calinski-Harabasz_norm, Davies-Bouldin_norm)."
+    plt.figtext(0.5, 0.01, internal_note, ha='center', fontsize=8)
+    plt.tight_layout(pad=0.5, rect=[0, 0.06, 1, 1])
     
     if not FIGURES_DIR.exists():
         FIGURES_DIR.mkdir(exist_ok=True)
@@ -176,6 +192,7 @@ def plot_heatmap(df):
     output_path = FIGURES_DIR / "model_decision_heatmap.png"
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"Heatmap saved to {output_path}")
+    print(internal_note)
 
 if __name__ == "__main__":
     df = get_comparison_data()
