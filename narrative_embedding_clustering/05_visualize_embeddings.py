@@ -76,18 +76,47 @@ def _plot_scatter(
     fig, ax = plt.subplots(figsize=(8, 6))
 
     labels = sorted(coords[color_col].dropna().unique())
-    scatter = ax.scatter(
-        coords[x_col],
-        coords[y_col],
-        c=coords[color_col],
-        cmap="tab10",
-        s=15,
-        alpha=0.8,
-    )
+    if color_col == "narrative_best_label":
+        cluster_palette = {
+            0: "#0072B2",
+            1: "#D55E00",
+            2: "#009E73",
+            3: "#CC79A7",
+            4: "#999933",
+            5: "#56B4E9",
+            6: "#E69F00",
+            7: "#000000",
+            8: "#999999",
+        }
 
-    handles, _ = scatter.legend_elements(prop="colors")
-    legend_labels = [f"{color_col} = {int(l)}" for l in labels]
-    ax.legend(handles, legend_labels, title=color_col, bbox_to_anchor=(1.05, 1), loc="upper left")
+        for label in labels:
+            label_int = int(label)
+            subset = coords[coords[color_col] == label]
+            ax.scatter(
+                subset[x_col],
+                subset[y_col],
+                color=cluster_palette.get(label_int, "#333333"),
+                s=15,
+                alpha=0.9,
+                edgecolor="white",
+                linewidth=0.3,
+                label=f"Cluster {label_int}",
+            )
+
+        ax.legend(title="Narrative Cluster", bbox_to_anchor=(1.05, 1), loc="upper left")
+    else:
+        scatter = ax.scatter(
+            coords[x_col],
+            coords[y_col],
+            c=coords[color_col],
+            cmap="tab10",
+            s=15,
+            alpha=0.8,
+        )
+
+        handles, _ = scatter.legend_elements(prop="colors")
+        legend_labels = [f"{color_col} = {int(l)}" for l in labels]
+        ax.legend(handles, legend_labels, title=color_col, bbox_to_anchor=(1.05, 1), loc="upper left")
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
@@ -178,46 +207,36 @@ def _plot_grouped_hull_scatter(
             print(f"Could not draw hull for {name}: {e}")
 
     # Draw scatter points
-    from matplotlib.colors import ListedColormap
-    
-    # Custom darker colors for contrast against yellow hull
-    # 9 distinct dark colors for clusters 0-8
-    dark_colors = [
-        '#1f77b4', # Darker Blue (standard tab10 blue is okay, but let's stick to valid distinct ones)
-        # Let's use specific strong dark colors
-        '#000080', # Navy
-        '#8B0000', # DarkRed
-        '#006400', # DarkGreen
-        '#4B0082', # Indigo
-        '#8B4513', # SaddleBrown
-        '#008080', # Teal
-        '#2F4F4F', # DarkSlateGray
-        '#B22222', # FireBrick
-        '#9932CC', # DarkOrchid
-    ]
-    # Ensure we have enough colors for the labels
-    unique_labels = sorted(coords["narrative_best_label"].dropna().unique())
-    # Cycle if needed (though we expect ~9 clusters)
-    import itertools
-    color_cycle = itertools.cycle(dark_colors)
-    mapped_colors = [next(color_cycle) for _ in range(len(unique_labels))]
-    custom_cmap = ListedColormap(mapped_colors)
+    # Fixed high-contrast palette (stable mapping: cluster id -> color)
+    # Note: We deliberately map by cluster *id* (0..8) to avoid colormap normalization/ordering issues.
+    cluster_palette = {
+        0: "#0072B2",  # Blue
+        1: "#D55E00",  # Vermillion
+        2: "#009E73",  # Green
+        3: "#CC79A7",  # Purple
+        4: "#999933",  # Olive
+        5: "#56B4E9",  # Sky blue
+        6: "#E69F00",  # Orange
+        7: "#000000",  # Black
+        8: "#999999",  # Grey
+    }
 
     labels = sorted(coords["narrative_best_label"].dropna().unique())
-    scatter = ax.scatter(
-        coords[x_col],
-        coords[y_col],
-        c=coords["narrative_best_label"],
-        cmap=custom_cmap,
-        s=40,
-        alpha=1.0, # Increased alpha for visibility
-        edgecolor='white',
-        linewidth=0.5
-    )
+    for label in labels:
+        label_int = int(label)
+        subset = coords[coords["narrative_best_label"] == label]
+        ax.scatter(
+            subset[x_col],
+            subset[y_col],
+            color=cluster_palette.get(label_int, "#333333"),
+            s=40,
+            alpha=1.0,
+            edgecolor="white",
+            linewidth=0.5,
+            label=f"Cluster {label_int}",
+        )
 
-    handles, _ = scatter.legend_elements(prop="colors")
-    legend_labels = [f"Cluster {int(l)}" for l in labels]
-    ax.legend(handles, legend_labels, title="Narrative Cluster", bbox_to_anchor=(1.05, 1), loc="upper left")
+    ax.legend(title="Narrative Cluster", bbox_to_anchor=(1.05, 1), loc="upper left")
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
