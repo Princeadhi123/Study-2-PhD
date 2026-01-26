@@ -56,9 +56,9 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
     vmax = float(np.nanmax(np.abs(mat.values))) if mat.size else 0.0
     vmax = max(1.0, min(3.0, vmax))
     vmin = -vmax
-    fig_w = max(10.0, 1.3 * len(mat.columns))
-    fig_h = max(8.0, 1.2 * max(6, len(mat)))
-    plt.figure(figsize=(fig_w, fig_h))
+    fig_w = max(4.8, (0.75 * len(mat.columns)) + 2.0)
+    fig_h = max(4.2, (0.45 * len(mat)) + 2.0)
+    fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     ax = sns.heatmap(
         mat,
         cmap="RdBu_r",
@@ -68,14 +68,20 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
         annot=True,
         fmt=".2f",
         cbar=True,
-        cbar_kws={"label": "z-mean"},
-        annot_kws={"size": 11},
-        linewidths=0.6,
+        cbar_kws={"label": "z-mean", "shrink": 0.9, "pad": 0.02, "aspect": 30},
+        annot_kws={"size": 18, "weight": "bold"},
+        linewidths=0.4,
         linecolor="#f0f0f0",
+        ax=ax,
     )
-    ax.set_xlabel("Subject area")
-    ax.set_ylabel("Cluster")
+    ax.set_xlabel("Subject area", fontsize=14, fontweight="bold")
+    ax.set_ylabel("Cluster", fontsize=14, fontweight="bold")
     ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha="right")
+    ax.tick_params(axis="both", labelsize=13)
+    for t in ax.get_xticklabels():
+        t.set_fontweight("bold")
+    for t in ax.get_yticklabels():
+        t.set_fontweight("bold")
     
     counts = df[cluster_col].value_counts().sort_index()
     ylabels = []
@@ -88,13 +94,17 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
             val = float(text.get_text())
         except Exception:
             continue
+        text.set_fontweight("bold")
         text.set_color("white" if abs(val) > (0.6 * vmax) else "black")
     
-    plt.title(title)
-    plt.tight_layout()
+    ax.set_title(title, fontsize=15, fontweight="bold", pad=6)
+    cbar = ax.collections[0].colorbar
+    cbar.set_label("z-mean", fontsize=13, fontweight="bold")
+    cbar.ax.tick_params(labelsize=12)
+    fig.tight_layout(pad=0.2)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out_path, dpi=150)
-    plt.close()
+    fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.02)
+    plt.close(fig)
     print(f"Saved plot to {out_path}")
 
 
