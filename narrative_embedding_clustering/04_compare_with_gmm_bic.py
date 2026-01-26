@@ -56,8 +56,10 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
     vmax = float(np.nanmax(np.abs(mat.values))) if mat.size else 0.0
     vmax = max(1.0, min(3.0, vmax))
     vmin = -vmax
-    fig_w = max(4.8, (0.75 * len(mat.columns)) + 2.0)
-    fig_h = max(4.2, (0.45 * len(mat)) + 2.0)
+    n_rows, n_cols = mat.shape
+    annot_size = 6
+    fig_w = min(4.2, max(3.0, (0.52 * n_cols) + 1.10))
+    fig_h = min(4.6, max(3.2, (0.36 * n_rows) + 1.05))
     fig, ax = plt.subplots(figsize=(fig_w, fig_h))
     ax = sns.heatmap(
         mat,
@@ -68,20 +70,16 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
         annot=True,
         fmt=".2f",
         cbar=True,
-        cbar_kws={"label": "z-mean", "shrink": 0.9, "pad": 0.02, "aspect": 30},
-        annot_kws={"size": 18, "weight": "bold"},
+        cbar_kws={"label": "z-mean", "shrink": 0.9, "pad": 0.015, "aspect": 40},
+        annot_kws={"size": annot_size, "weight": "bold"},
         linewidths=0.4,
         linecolor="#f0f0f0",
         ax=ax,
     )
-    ax.set_xlabel("Subject area", fontsize=14, fontweight="bold")
-    ax.set_ylabel("Cluster", fontsize=14, fontweight="bold")
+    ax.set_xlabel("Subject area", fontsize=annot_size)
+    ax.set_ylabel("Cluster", fontsize=annot_size)
     ax.set_xticklabels(ax.get_xticklabels(), rotation=30, ha="right")
-    ax.tick_params(axis="both", labelsize=13)
-    for t in ax.get_xticklabels():
-        t.set_fontweight("bold")
-    for t in ax.get_yticklabels():
-        t.set_fontweight("bold")
+    ax.tick_params(axis="both", labelsize=annot_size)
     
     counts = df[cluster_col].value_counts().sort_index()
     ylabels = []
@@ -97,13 +95,13 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
         text.set_fontweight("bold")
         text.set_color("white" if abs(val) > (0.6 * vmax) else "black")
     
-    ax.set_title(title, fontsize=15, fontweight="bold", pad=6)
+    ax.set_title(title.replace("\n", " "), fontsize=annot_size, fontweight="normal", pad=2)
     cbar = ax.collections[0].colorbar
-    cbar.set_label("z-mean", fontsize=13, fontweight="bold")
-    cbar.ax.tick_params(labelsize=12)
-    fig.tight_layout(pad=0.2)
+    cbar.set_label("z-mean", fontsize=annot_size)
+    cbar.ax.tick_params(labelsize=annot_size)
+    fig.tight_layout(pad=0.02)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.02)
+    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.005)
     plt.close(fig)
     print(f"Saved plot to {out_path}")
 
