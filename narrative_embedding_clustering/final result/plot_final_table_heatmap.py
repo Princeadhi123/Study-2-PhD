@@ -86,9 +86,23 @@ def main():
     color_df = pd.DataFrame(index=annot_df.index, columns=annot_df.columns)
     
     # Apply normalization logic
+    # For ARI: normalize relative to best narrative model (exclude Numeric Baseline)
+    is_numeric_baseline = df.index.str.contains("Numeric", case=False, na=False)
+    df_narrative = df.loc[~is_numeric_baseline]
+    
     for col in metrics:
         invert = ('Davies-Bouldin' in col)
-        color_df[col] = normalize_column(annot_df[col], invert=invert)
+        if 'ARI' in col:
+            # Relative ARI normalization: exclude Numeric Baseline from stats, set baseline to 1.0
+            ari_max = df_narrative[col].max()
+            if ari_max != 0:
+                color_df[col] = df[col] / ari_max
+            else:
+                color_df[col] = 0.0
+            # Ensure Numeric Baseline shows 1.0
+            color_df.loc[is_numeric_baseline, col] = 1.0
+        else:
+            color_df[col] = normalize_column(annot_df[col], invert=invert)
 
     # Plotting - Compact Size for Paper (e.g., 1 column width)
     # 8 inches wide is roughly a full page width, 3.5 inches high is compact

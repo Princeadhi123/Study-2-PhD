@@ -73,9 +73,9 @@ def plot_heatmap(df):
     df_norm = df_norm.set_index("Model Name")
 
     # Compute normalization stats from non-numeric models (so Numeric Baseline doesn't distort scaling)
-    df_stats = df_norm
-    if "Numeric Baseline" in df_stats.index:
-        df_stats = df_stats.drop("Numeric Baseline")
+    # NOTE: the index label includes K (e.g., "Numeric Baseline (K=4)"), so exclude via Template.
+    is_numeric_baseline = df_norm["Template"].astype(str).str.contains("Numeric", case=False, na=False)
+    df_stats = df_norm.loc[~is_numeric_baseline]
     
     # Normalize metrics to 0-1 score for the Decision Matrix
     # Calculate normalization stats from the filtered dataframe
@@ -118,11 +118,11 @@ def plot_heatmap(df):
                            (0.1 * df_norm["ARI_Norm"])
 
     # Optional: compute baseline composite (ARI is 1.0 by definition for the reference clustering)
-    if "Numeric Baseline" in df_norm.index:
-        df_norm.loc["Numeric Baseline", "ARI_Norm"] = 1.0
-        df_norm.loc["Numeric Baseline", "Composite"] = (0.5 * df_norm.loc["Numeric Baseline", "Eta_Norm"]) + \
-                                                       (0.4 * df_norm.loc["Numeric Baseline", "Internal Score"]) + \
-                                                       (0.1 * df_norm.loc["Numeric Baseline", "ARI_Norm"])
+    if is_numeric_baseline.any():
+        df_norm.loc[is_numeric_baseline, "ARI_Norm"] = 1.0
+        df_norm.loc[is_numeric_baseline, "Composite"] = (0.5 * df_norm.loc[is_numeric_baseline, "Eta_Norm"]) + \
+                                                        (0.4 * df_norm.loc[is_numeric_baseline, "Internal Score"]) + \
+                                                        (0.1 * df_norm.loc[is_numeric_baseline, "ARI_Norm"])
     
     # Select columns to plot
     cols_to_plot = [
