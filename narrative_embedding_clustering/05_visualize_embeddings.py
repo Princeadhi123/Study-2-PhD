@@ -151,9 +151,9 @@ def _plot_grouped_hull_scatter(
 
     # Define groups
     groups = {
-        "Mastery Group": [3, 7, 8],
-        "Developing Group": [0, 2, 4],
-        "Struggling Group": [1, 5, 6]
+        "Mastery Group": [6, 7, 8],
+        "Developing Group": [3, 4, 5],
+        "Struggling Group": [0, 1, 2]
     }
     
     # Draw hulls first (background)
