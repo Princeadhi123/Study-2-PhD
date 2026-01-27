@@ -31,17 +31,39 @@ def main():
         return
 
     df = pd.read_csv(INPUT_FILE)
+
+    def map_template_to_strategy(template: str) -> str:
+        if template == "Template A":
+            return "Strategy C"
+        if template == "Template C":
+            return "Strategy A"
+        return template.replace("Template", "Strategy")
     
-    # Sort by Template (Ascending) and Model (Descending: MiniLM > MPNet, so MiniLM first)
-    df = df.sort_values(['Template', 'Model'], ascending=[True, False])
+    # Sort: Numeric first, then by Template A->C
+    # We can achieve this by a custom sort key
+    df['SortKey'] = df['Template'].apply(lambda x: 0 if 'Numeric' in x else 1)
+    df['StrategyName'] = df['Template'].apply(map_template_to_strategy)
+    strategy_order = {"Strategy A": 1, "Strategy B": 2, "Strategy C": 3}
+    df['StrategySort'] = df['StrategyName'].map(strategy_order).fillna(999).astype(int)
+    df = df.sort_values(['SortKey', 'StrategySort', 'Model'], ascending=[True, True, False])
 
     # Create descriptive index
-    df['Label'] = df['Template'] + " + " + df['Model']
+    # User requested "Numeric Baseline" and putting GMM-AICc in title
+    # Also requested renaming "Template" to "Strategy"
+    df['Label'] = df.apply(
+        lambda row: (
+            (map_template_to_strategy(row['Template']) + " + " + row['Model'])
+            if 'Numeric' not in row['Template']
+            else "Numeric Baseline"
+        )
+        + (f" (K={int(row['Winner K'])})" if pd.notna(row.get('Winner K')) else ""),
+        axis=1
+    )
     df = df.set_index('Label')
     
     # Rename columns to match desired output
     df = df.rename(columns={
-        'Silhouette (Cosine)': 'Silhouette (Cosine)\nScore',
+        'Silhouette (Cosine)': 'Silhouette\nScore',
         'Calinski-Harabasz': 'Calinski-Harabasz\nScore',
         'Davies-Bouldin': 'Davies-Bouldin\nScore',
         'ARI (vs Numeric)': 'ARI (vs Numeric)\nScore',
@@ -50,7 +72,7 @@ def main():
     
     # Select numeric metrics for the heatmap
     metrics = [
-        'Silhouette (Cosine)\nScore', 
+        'Silhouette\nScore', 
         'Calinski-Harabasz\nScore', 
         'Davies-Bouldin\nScore', 
         'ARI (vs Numeric)\nScore', 
@@ -84,7 +106,7 @@ def main():
     )
     
     # Compact Title
-    plt.title("Model Comparison", fontsize=11, fontweight='bold', pad=10)
+    plt.title("Model Comparison (GMM-AICc)", fontsize=11, fontweight='bold', pad=10)
     plt.ylabel("") # Hide "Label" label
     
     # Rotate x-axis labels

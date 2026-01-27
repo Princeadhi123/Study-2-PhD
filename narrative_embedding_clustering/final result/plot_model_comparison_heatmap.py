@@ -6,167 +6,137 @@ from pathlib import Path
 
 # Configuration
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-OUTPUT_DIR = PROJECT_ROOT / "narrative_embedding_clustering" / "outputs"
-MARKS_PATH = PROJECT_ROOT / "diagnostics" / "cluster input features" / "marks_with_clusters.csv"
+# Instead of calculating from scratch, load the FINAL comparison CSV which now includes Numeric
+INPUT_FILE = PROJECT_ROOT / "narrative_embedding_clustering" / "final result" / "final_model_comparison.csv"
 FIGURES_DIR = PROJECT_ROOT / "figures"
 
-MODELS = [
-    ("Template A", "MPNet", OUTPUT_DIR / "template_A/all_mpnet_base_v2"),
-    ("Template A", "MiniLM", OUTPUT_DIR / "template_A/all_MiniLM_L6_v2"),
-    ("Template B", "MPNet", OUTPUT_DIR / "template_B/all_mpnet_base_v2"),
-    ("Template B", "MiniLM", OUTPUT_DIR / "template_B/all_MiniLM_L6_v2"),
-    ("Template C", "MPNet", OUTPUT_DIR / "template_C/all_mpnet_base_v2"),
-    ("Template C", "MiniLM", OUTPUT_DIR / "template_C/all_MiniLM_L6_v2"),
-]
-
-def calculate_eta_squared(df, group_col, value_cols):
-    etas = []
-    for col in value_cols:
-        # ANOVA
-        groups = [d[col].dropna() for _, d in df.groupby(group_col)]
-        if len(groups) < 2:
-            continue
-        
-        # Flatten
-        all_values = np.concatenate(groups)
-        grand_mean = np.mean(all_values)
-        
-        ss_total = np.sum((all_values - grand_mean) ** 2)
-        ss_between = sum(len(g) * (np.mean(g) - grand_mean) ** 2 for g in groups)
-        
-        if ss_total > 0:
-            eta = ss_between / ss_total
-            etas.append(eta)
-            
-    return np.mean(etas) if etas else 0.0
-
-def get_comparison_data():
-    results = []
+def normalize_column(series, invert=False):
+    """Normalize a pandas series to 0-1 range. """
+    min_val = series.min()
+    max_val = series.max()
     
-    # Load Marks
-    if not MARKS_PATH.exists():
-        print(f"Error: Marks file not found at {MARKS_PATH}")
-        return pd.DataFrame()
-
-    marks_df = pd.read_csv(MARKS_PATH)
-    numeric_cols = [c for c in marks_df.columns if c not in ["IDCode", "student_id"] and pd.api.types.is_numeric_dtype(marks_df[c])]
-    mark_cols = [c for c in numeric_cols if c.startswith("S") or c in ["FinalMark", "Total"]]
-    if not mark_cols:
-        mark_cols = numeric_cols 
-        
-    print(f"Calculating metrics...")
-
-    for template, model, path in MODELS:
-        # 1. Get Internal Metrics
-        if "template_B" in str(path): suffix = "_B"
-        elif "template_C" in str(path): suffix = "_C"
-        else: suffix = ""
-            
-        metrics_file = path / f"gmm_vs_narrative_metrics{suffix}.csv"
-        
-        sil = np.nan
-        ch = np.nan
-        db = np.nan
-        ari = np.nan
-        
-        if metrics_file.exists():
-            metrics_df = pd.read_csv(metrics_file)
-            for _, row in metrics_df.iterrows():
-                m = row["metric"]
-                b = row["baseline"]
-                v = row["value"]
-                
-                if b == "narrative_best_label":
-                    if m == "silhouette_cosine": sil = v
-                    elif m == "calinski_harabasz": ch = v
-                    elif m == "davies_bouldin": db = v
-                elif m == "adjusted_rand_index" and b == "gmm_aicc_best_label":
-                    ari = v
-
-        # 2. Get External Metrics (Eta Squared)
-        clusters_file = path / f"narrative_clusters{suffix}.csv"
-        mean_eta = 0.0
-        
-        if clusters_file.exists():
-            clusters_df = pd.read_csv(clusters_file)
-            label_col = "narrative_gmm_aicc_best_label"
-            if label_col in clusters_df.columns:
-                id_col = "IDCode" if "IDCode" in clusters_df.columns else "id"
-                merged = pd.merge(clusters_df, marks_df, left_on=id_col, right_on="IDCode", how="inner")
-                mean_eta = calculate_eta_squared(merged, label_col, mark_cols)
-        
-        results.append({
-            "Template": template,
-            "Model": model,
-            "Silhouette (Cosine)\nScore": sil,
-            "Calinski-Harabasz\nScore": ch,
-            "Davies-Bouldin\nScore": db,
-            "ARI (vs Numeric)\nScore": ari,
-            "Mean Eta^2\nScore": mean_eta
-        })
-
-    return pd.DataFrame(results)
+    if max_val == min_val:
+        return pd.Series(0.5, index=series.index)
+    
+    if invert:
+        # Lower is better (1.0)
+        return (max_val - series) / (max_val - min_val)
+    else:
+        # Higher is better (1.0)
+        return (series - min_val) / (max_val - min_val)
 
 def plot_heatmap(df):
     if df.empty:
         print("No data to plot.")
         return
 
-    # Normalize metrics to 0-1 score for the Decision Matrix
-    df_norm = df.copy()
+    # User Request: Rename "Template" to "Strategy"
+    # The CSV has "Template", "Model", etc.
+    # Convert to "Model Name" first
     
-    # Handle NaNs
-    df_norm = df_norm.fillna(0)
+    # 1. Rename columns if needed or just handle in label creation
+    # The CSV has: Template, Model, ...
 
-    # Normalize (Max-based normalization)
-    # We overwrite the columns with their normalized versions, but keep the original names
-    eta_max = df_norm["Mean Eta^2\nScore"].max()
-    sil_max = df_norm["Silhouette (Cosine)\nScore"].max()
-    ch_max = df_norm["Calinski-Harabasz\nScore"].max()
-    ari_max = df_norm["ARI (vs Numeric)\nScore"].max()
+    df_norm = df.copy()
 
-    df_norm["Mean Eta^2\nScore"] = df_norm["Mean Eta^2\nScore"] / eta_max if eta_max else 0
-    df_norm["Silhouette (Cosine)\nScore"] = df_norm["Silhouette (Cosine)\nScore"] / sil_max if sil_max else 0
-    df_norm["Calinski-Harabasz\nScore"] = df_norm["Calinski-Harabasz\nScore"] / ch_max if ch_max else 0
+    def map_template_to_strategy(template: str) -> str:
+        if template == "Template A":
+            return "Strategy C"
+        if template == "Template C":
+            return "Strategy A"
+        return template.replace("Template", "Strategy")
+    
+    # Create Labels
+    # Logic: Rename Template->Strategy. Handle Numeric Baseline.
+    def create_label(row):
+        if "Numeric" in row["Template"]:
+            base = "Numeric Baseline"
+        else:
+            strategy = map_template_to_strategy(row["Template"])
+            base = f"{strategy} + {row['Model']}"
 
-    # DB is lower-is-better
-    db_series = df_norm["Davies-Bouldin\nScore"].replace(0, np.nan)
-    db_min = db_series.min(skipna=True)
-    df_norm["Davies-Bouldin\nScore"] = (db_min / db_series) if (db_min and not np.isnan(db_min)) else 0
-    df_norm["Davies-Bouldin\nScore"] = df_norm["Davies-Bouldin\nScore"].replace([np.inf, -np.inf], np.nan).fillna(0)
+        if pd.notna(row.get("Winner K")):
+            return f"{base} (K={int(row['Winner K'])})"
 
-    df_norm["ARI (vs Numeric)\nScore"] = df_norm["ARI (vs Numeric)\nScore"] / ari_max if ari_max else 0
+        return base
+
+    df_norm["Model Name"] = df_norm.apply(create_label, axis=1)
+    
+    # Sorting
+    # Numeric First, then Strategy A->C
+    df_norm['SortKey'] = df_norm['Template'].apply(lambda x: 0 if 'Numeric' in x else 1)
+    df_norm['StrategyName'] = df_norm['Template'].apply(map_template_to_strategy)
+    strategy_order = {"Strategy A": 1, "Strategy B": 2, "Strategy C": 3}
+    df_norm['StrategySort'] = df_norm['StrategyName'].map(strategy_order).fillna(999).astype(int)
+    df_norm = df_norm.sort_values(['SortKey', 'StrategySort', 'Model'], ascending=[True, True, False])
+    
+    df_norm = df_norm.set_index("Model Name")
+
+    # Compute normalization stats from non-numeric models (so Numeric Baseline doesn't distort scaling)
+    df_stats = df_norm
+    if "Numeric Baseline" in df_stats.index:
+        df_stats = df_stats.drop("Numeric Baseline")
+    
+    # Normalize metrics to 0-1 score for the Decision Matrix
+    # Calculate normalization stats from the filtered dataframe
+
+    # Normalize
+    # Use Ratio Scaling (x / max) for positive "higher is better" metrics to avoid zeroing out the min
+    # Use Inverse Ratio (min / x) for "lower is better" (DB)
+    # Use Min-Max for Silhouette (since it can be negative)
+    sil_min = df_stats["Silhouette (Cosine)"].min()
+    sil_max = df_stats["Silhouette (Cosine)"].max()
+    if sil_max == sil_min:
+        df_norm["Sil_Norm"] = pd.Series(0.5, index=df_norm.index)
+    else:
+        df_norm["Sil_Norm"] = (df_norm["Silhouette (Cosine)"] - sil_min) / (sil_max - sil_min)
+    df_norm["Sil_Norm"] = df_norm["Sil_Norm"].clip(lower=0.0, upper=1.0)
+
+    ch_max = df_stats["Calinski-Harabasz"].max()
+    df_norm["CH_Norm"] = df_norm["Calinski-Harabasz"] / ch_max if ch_max != 0 else 0.0
+
+    db_min = df_stats["Davies-Bouldin"].min()
+    df_norm["DB_Norm"] = db_min / df_norm["Davies-Bouldin"]
+
+    ari_max = df_stats["ARI (vs Numeric)"].max()
+    df_norm["ARI_Norm"] = df_norm["ARI (vs Numeric)"] / ari_max if ari_max != 0 else 0.0
+
+    eta_max = df_stats["Mean Eta^2"].max()
+    df_norm["Eta_Norm"] = df_norm["Mean Eta^2"] / eta_max if eta_max != 0 else 0.0
 
     # Combine internal metrics into a single score (equal weights)
     df_norm["Internal Score"] = (
-        df_norm["Silhouette (Cosine)\nScore"]
-        + df_norm["Calinski-Harabasz\nScore"]
-        + df_norm["Davies-Bouldin\nScore"]
+        df_norm["Sil_Norm"]
+        + df_norm["CH_Norm"]
+        + df_norm["DB_Norm"]
     ) / 3
     
     # Composite Score calculation
-    df_norm["Composite"] = (0.5 * df_norm["Mean Eta^2\nScore"]) + \
+    # Weights: 50% Eta, 40% Internal, 10% ARI
+    df_norm["Composite"] = (0.5 * df_norm["Eta_Norm"]) + \
                            (0.4 * df_norm["Internal Score"]) + \
-                           (0.1 * df_norm["ARI (vs Numeric)\nScore"])
+                           (0.1 * df_norm["ARI_Norm"])
+
+    # Optional: compute baseline composite (ARI is 1.0 by definition for the reference clustering)
+    if "Numeric Baseline" in df_norm.index:
+        df_norm.loc["Numeric Baseline", "ARI_Norm"] = 1.0
+        df_norm.loc["Numeric Baseline", "Composite"] = (0.5 * df_norm.loc["Numeric Baseline", "Eta_Norm"]) + \
+                                                       (0.4 * df_norm.loc["Numeric Baseline", "Internal Score"]) + \
+                                                       (0.1 * df_norm.loc["Numeric Baseline", "ARI_Norm"])
     
-    # Prepare data for heatmap
-    df_norm["Model Name"] = df_norm["Template"] + " + " + df_norm["Model"]
-    
-    # Sort by Template (Ascending) and Model (Descending)
-    # 'MPNet' < 'MiniLM' is True.
-    # We want MiniLM first. So we want Descending order for Model (MiniLM, MPNet).
-    df_norm = df_norm.sort_values(['Template', 'Model'], ascending=[True, False])
-    
-    df_norm = df_norm.set_index("Model Name")
-    
-    # Select columns to plot - Matching Raw Table Order + Composite
+    # Select columns to plot
     cols_to_plot = [
         "Internal Score",
-        "ARI (vs Numeric)\nScore", 
-        "Mean Eta^2\nScore", 
+        "ARI_Norm", 
+        "Eta_Norm", 
         "Composite"
     ]
-    plot_data = df_norm[cols_to_plot]
+    
+    # Rename for display
+    plot_data = df_norm[cols_to_plot].rename(columns={
+        "ARI_Norm": "ARI (vs Numeric)\nScore",
+        "Eta_Norm": "Mean Eta^2\nScore"
+    })
     
     # Plot - Compact Size for Paper
     plt.figure(figsize=(9, 3.5))
@@ -187,13 +157,25 @@ def plot_heatmap(df):
     plt.tight_layout(pad=0.5, rect=[0, 0.06, 1, 1])
     
     if not FIGURES_DIR.exists():
-        FIGURES_DIR.mkdir(exist_ok=True)
+        FIGURES_DIR.mkdir(exist_ok=True, parents=True)
         
     output_path = FIGURES_DIR / "model_decision_heatmap.png"
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
     print(f"Heatmap saved to {output_path}")
     print(internal_note)
+    
+    # Save the computed scores to CSV
+    scores_path = FIGURES_DIR / "model_decision_scores.csv"
+    # plot_data already has the correct column names and data
+    df_export = plot_data.sort_values("Composite", ascending=False)
+    df_export.to_csv(scores_path)
+    print(f"Composite scores saved to {scores_path}")
+    print("\nTop 3 Models by Composite Score:")
+    print(df_export.head(3)[["Composite"]])
 
 if __name__ == "__main__":
-    df = get_comparison_data()
-    plot_heatmap(df)
+    if not INPUT_FILE.exists():
+        print(f"Error: {INPUT_FILE} not found. Please run the comparison script first.")
+    else:
+        df = pd.read_csv(INPUT_FILE)
+        plot_heatmap(df)
