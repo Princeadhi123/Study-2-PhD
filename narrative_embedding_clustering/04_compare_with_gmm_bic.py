@@ -71,7 +71,7 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
         fmt=".2f",
         cbar=True,
         cbar_kws={"label": "z-mean", "shrink": 0.9, "pad": 0.015, "aspect": 40},
-        annot_kws={"size": annot_size, "weight": "bold"},
+        annot_kws={"size": annot_size, "weight": "normal"},
         linewidths=0.4,
         linecolor="#f0f0f0",
         ax=ax,
@@ -92,7 +92,6 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
             val = float(text.get_text())
         except Exception:
             continue
-        text.set_fontweight("bold")
         text.set_color("white" if abs(val) > (0.6 * vmax) else "black")
     
     ax.set_title(title.replace("\n", " "), fontsize=annot_size, fontweight="normal", pad=2)
