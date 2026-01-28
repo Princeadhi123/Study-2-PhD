@@ -23,7 +23,7 @@ axs[0].set_title('(a) Numeric Baseline (GMM-AICc, K=4)', fontsize=12, fontweight
 # Plot second image (b)
 axs[1].imshow(img2)
 axs[1].axis('off')
-axs[1].set_title('(b) Narrative Clustering (Template A + MiniLM, K=9)', fontsize=12, fontweight='bold')
+axs[1].set_title('(b) Narrative Clustering (Strategy C + MiniLM, K=9)', fontsize=12, fontweight='bold')
 
 plt.tight_layout()
 plt.savefig(output_path, dpi=300, bbox_inches='tight')
