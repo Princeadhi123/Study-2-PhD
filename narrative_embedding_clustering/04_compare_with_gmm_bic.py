@@ -100,7 +100,7 @@ def _save_zmean_heatmap(df: pd.DataFrame, cluster_col: str, value_cols: list, ou
     cbar.ax.tick_params(labelsize=annot_size)
     fig.tight_layout(pad=0.02)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_path, dpi=200, bbox_inches="tight", pad_inches=0.005)
+    fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.005)
     plt.close(fig)
     print(f"Saved plot to {out_path}")
 
@@ -467,7 +467,7 @@ def main() -> None:
                         "narrative_best_label", 
                         subj_cols, 
                         heatmap_path, 
-                        f"Subject-wise z-mean by Narrative Cluster\n(Template {NARRATIVE_TEMPLATE_VERSION.upper()})"
+                        "Subject-wise z-mean by Narrative Cluster\n(Strategy C + MiniLM)"
                     )
                 except Exception as e:
                     print(f"Could not save narrative heatmap: {e}")
