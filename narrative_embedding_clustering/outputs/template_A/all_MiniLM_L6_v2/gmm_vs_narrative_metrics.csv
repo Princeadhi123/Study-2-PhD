@@ -3,7 +3,7 @@ A,gmm_bic_best_label,adjusted_rand_index,0.22000073184691235,"Agreement between 
 A,gmm_aic_best_label,adjusted_rand_index,0.22858211457056618,"Agreement between baseline cluster labels and narrative_best_label (1 = perfect match, 0 ≈ random)."
 A,gmm_aicc_best_label,adjusted_rand_index,0.13773248772298138,"Agreement between baseline cluster labels and narrative_best_label (1 = perfect match, 0 ≈ random)."
 A,narrative_best_label,silhouette_cosine,0.6089709997177124,"Cluster separation in narrative embedding space using cosine distance (higher is better, max = 1)."
-A,narrative_best_label,calinski_harabasz,224.80487060546875,Calinski-Harabasz index in narrative embedding space (higher is better).
+A,narrative_best_label,calinski_harabasz,224.8048553466797,Calinski-Harabasz index in narrative embedding space (higher is better).
 A,narrative_best_label,davies_bouldin,0.951471694417873,Davies-Bouldin index in narrative embedding space (lower is better).
 A,gmm_bic_best_label,silhouette_cosine,0.03140146657824516,"Cluster separation in narrative embedding space using cosine distance (higher is better, max = 1)."
 A,gmm_bic_best_label,calinski_harabasz,81.15908813476562,Calinski-Harabasz index in narrative embedding space (higher is better).

@@ -151,13 +151,13 @@ def _plot_grouped_hull_scatter(
 
     # Define groups
     groups = {
-        "Mastery Group": [6, 7, 8],
+        "Mastery Group": [0, 1, 2],
         "Developing Group": [3, 4, 5],
-        "Struggling Group": [0, 1, 2]
+        "Struggling Group": [6, 7, 8]
     }
     
     # Draw hulls first (background)
-    for name, cluster_ids in groups.items():
+    for group_name, cluster_ids in groups.items():
         subset = coords[coords["narrative_best_label"].isin(cluster_ids)]
         if len(subset) < 3:
             continue
@@ -184,7 +184,7 @@ def _plot_grouped_hull_scatter(
             cx = np.mean(points[:, 0])
             
             # Determine placement based on group
-            if "Mastery" in name:
+            if "Mastery" in group_name:
                 # Place below
                 cy = np.min(points[:, 1]) - 0.005
                 va = 'top'
@@ -194,7 +194,7 @@ def _plot_grouped_hull_scatter(
                 va = 'bottom'
             
             txt = ax.text(
-                cx, cy, name, 
+                cx, cy, group_name, 
                 fontsize=13, 
                 color='blue', 
                 ha='center', 
@@ -204,7 +204,7 @@ def _plot_grouped_hull_scatter(
             txt.set_path_effects([PathEffects.withStroke(linewidth=2, foreground='white')])
             
         except Exception as e:
-            print(f"Could not draw hull for {name}: {e}")
+            print(f"Could not draw hull for {group_name}: {e}")
 
     # Draw scatter points
     # Fixed high-contrast palette (stable mapping: cluster id -> color)
