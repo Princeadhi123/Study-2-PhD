@@ -3,6 +3,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from pathlib import Path
 import numpy as np
+from decimal import Decimal, ROUND_HALF_UP
 
 # Configuration
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -34,6 +35,7 @@ def main():
 
     strategy_c_mean_ari = df.loc[df["Template"].eq("Template A"), "ARI (vs Numeric)"].mean()
     if pd.notna(strategy_c_mean_ari):
+        strategy_c_mean_ari = float(Decimal(str(strategy_c_mean_ari)).quantize(Decimal("0.0001"), rounding=ROUND_HALF_UP))
         df.loc[df["Template"].astype(str).str.contains("Numeric", case=False, na=False), "ARI (vs Numeric)"] = float(strategy_c_mean_ari)
 
     def map_template_to_strategy(template: str) -> str:
