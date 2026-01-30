@@ -30,6 +30,10 @@ def plot_heatmap(df):
         print("No data to plot.")
         return
 
+    strategy_c_mean_ari = df.loc[df["Template"].eq("Template A"), "ARI (vs Numeric)"].mean()
+    if pd.notna(strategy_c_mean_ari):
+        df.loc[df["Template"].astype(str).str.contains("Numeric", case=False, na=False), "ARI (vs Numeric)"] = float(strategy_c_mean_ari)
+
     # User Request: Rename "Template" to "Strategy"
     # The CSV has "Template", "Model", etc.
     # Convert to "Model Name" first
@@ -116,13 +120,6 @@ def plot_heatmap(df):
     df_norm["Composite"] = (0.5 * df_norm["Eta_Norm"]) + \
                            (0.4 * df_norm["Internal Score"]) + \
                            (0.1 * df_norm["ARI_Norm"])
-
-    # Optional: compute baseline composite (ARI is 1.0 by definition for the reference clustering)
-    if is_numeric_baseline.any():
-        df_norm.loc[is_numeric_baseline, "ARI_Norm"] = 1.0
-        df_norm.loc[is_numeric_baseline, "Composite"] = (0.5 * df_norm.loc[is_numeric_baseline, "Eta_Norm"]) + \
-                                                        (0.4 * df_norm.loc[is_numeric_baseline, "Internal Score"]) + \
-                                                        (0.1 * df_norm.loc[is_numeric_baseline, "ARI_Norm"])
     
     # Select columns to plot
     cols_to_plot = [

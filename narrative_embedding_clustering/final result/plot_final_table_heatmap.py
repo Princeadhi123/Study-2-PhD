@@ -32,6 +32,10 @@ def main():
 
     df = pd.read_csv(INPUT_FILE)
 
+    strategy_c_mean_ari = df.loc[df["Template"].eq("Template A"), "ARI (vs Numeric)"].mean()
+    if pd.notna(strategy_c_mean_ari):
+        df.loc[df["Template"].astype(str).str.contains("Numeric", case=False, na=False), "ARI (vs Numeric)"] = float(strategy_c_mean_ari)
+
     def map_template_to_strategy(template: str) -> str:
         if template == "Template A":
             return "Strategy C"
@@ -99,8 +103,6 @@ def main():
                 color_df[col] = df[col] / ari_max
             else:
                 color_df[col] = 0.0
-            # Ensure Numeric Baseline shows 1.0
-            color_df.loc[is_numeric_baseline, col] = 1.0
         else:
             color_df[col] = normalize_column(annot_df[col], invert=invert)
 
@@ -126,7 +128,7 @@ def main():
     # Rotate x-axis labels
     plt.xticks(rotation=30, ha='right', fontsize=9)
     plt.yticks(rotation=0, fontsize=9)
-    
+
     plt.tight_layout(pad=0.5)
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(OUTPUT_FILE, dpi=300, bbox_inches='tight')
